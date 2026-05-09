@@ -20,6 +20,11 @@ export class AddTreatmentUseCase {
       throw new Error('La fecha de inicio es requerida');
     }
     
+    // ✅ VALIDACIÓN FALTANTE: endDate no puede ser menor que startDate
+    if (dto.endDate && new Date(dto.endDate) < new Date(dto.startDate)) {
+      throw new Error('La fecha de fin no puede ser menor a la fecha de inicio');
+    }
+    
     const treatment = Treatment.create({
       id: uuidv4(),
       visitId: dto.visitId,
