@@ -1,43 +1,41 @@
-export class weightRecord {
-  constructor(
-    public id: string,
-    public petId: string,
-    public weight?: number,
-    public date?: Date,
-    public note?: string,
-    public createdAt?: Date
-  ) {}
+import { error } from "console";//Para ver los errores en la terminal (santa medicina)
 
-  static create(props: {
-    weight: number;
-    date?: Date;
-    note?: string;
-  }): weightRecord {
-    return new weightRecord(
-      '',
-      '',
-      props.weight,
-      props.date,
-      props.note
-    );
+export interface weightRecordProps {
+  id?: string;
+  petId?: string;
+  weight?: number;
+  date?: Date;
+  note?: string;
+  createdAt: Date;
+}
+
+export class weightRecord {
+  private constructor(private props: weightRecordProps) {}
+
+  static create(
+    props: Omit<weightRecordProps, 'createdAt'>
+  ): weightRecord {
+    return new weightRecord({
+      ...props,
+      createdAt: new Date(),
+    });
   }
 
+  static reconstitute(props: weightRecordProps): weightRecord {
+    return new weightRecord(props);
+  }
 
-  static reconstitute(data: {
-    id: string;
-    petId: string;
-    weight?: number;
-    date?: Date;
-    note?: string;
-    createdAt: Date;
-  }): weightRecord {
-    return new weightRecord(
-      data.id,
-      data.petId,
-      data.weight,
-      data.date,
-      data.note,
-      data.createdAt
-    );
+  get id() { return this.props.id; }
+  get petId() { return this.props.petId; }
+  get weight() { return this.props.weight; }
+  get date() { return this.props.date; }
+  get note() { return this.props.note; }
+  get createdAt() { return this.props.createdAt; }
+
+  updateWeight(weight: number): void{
+    if (weight<=0){
+      throw new Error('El peso debe ser mayor de 0');
+    }
+    this.props.weight = weight;
   }
 }
