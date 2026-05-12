@@ -22,6 +22,10 @@ export interface weightRecordListResponseDto{
   note?: string;
   createdAt: string;
 }
+export interface weightRecordByPetIdResponseDto {
+  petId: string;
+  weight?: number;
+}
 
 export interface UpdateWeightRecordDto{
   weight: number;

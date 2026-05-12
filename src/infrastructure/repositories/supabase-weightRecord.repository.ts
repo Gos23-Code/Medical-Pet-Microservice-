@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { weightRecord } from '../../domain/entities/weightRecord.entity';
 import { weightRecordRepository } from '../../domain/repositories/weightRecord.repository';
-import { weightRecordListResponseDto, weightRecordResponseDto } from '@/src/application/dtos/weightRecord.dto';
+import { weightRecordListResponseDto, weightRecordResponseDto, weightRecordByPetIdResponseDto } from '@/src/application/dtos/weightRecord.dto';
 
 //Interfas para GetAll
 interface SupabaseWeightRecord {
@@ -11,6 +11,12 @@ interface SupabaseWeightRecord {
   Date: string | null;
   Note: string | null;
   Created_at: string;
+}
+
+//Interfas para GetWeightByPetId
+interface SupabaseWeightRecordByPetId {
+  PetId: string;
+  Weight: number;
 }
 
 export class SupabaseWeightRecordRepository implements weightRecordRepository {
@@ -61,6 +67,29 @@ export class SupabaseWeightRecordRepository implements weightRecordRepository {
       note: item.Note ?? undefined,
       createdAt: new Date(item.Created_at).toISOString(),
     }));
+  }
+
+  //ListWeightRecord By PetId
+  async findByPetId(petId: string): Promise<weightRecordByPetIdResponseDto[]> {
+    const {data, error}= await createClient()
+    .from('WeightRecord')
+    .select('PetId, Weight')
+    .eq('PetId', petId)
+    .order('Created_at', { ascending: false });
+
+    if(error){
+      throw new Error (`Error: ${error.message}`);
+    }
+
+    if (!data || data.length === 0) {
+      throw new Error(`No se encontraron registros para petId: ${petId}`);
+    }
+
+    return data.map((item: SupabaseWeightRecordByPetId) => ({
+    petId: item.PetId,
+    weight: item.Weight ?? undefined,
+    }));
+  
   }
 
   //Update

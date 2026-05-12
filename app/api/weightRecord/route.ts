@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { AddWeightRecordUseCase } from '@/src/application/use-cases/add-weightRecord.use-case';
 import { GetAllWeightRecordsUseCase } from '@/src/application/use-cases/get-all-weightRecords.use-case';
+import { GetWeightRecordsByPetIdUseCase } from '@/src/application/use-cases/get-weightRecords-byPetId.use-case';
 import { UpdateWeightRecordUseCase} from '@/src/application/use-cases/update-weightRecord.use-case';
 import { SupabaseWeightRecordRepository } from '@/src/infrastructure/repositories/supabase-weightRecord.repository';
 
@@ -31,17 +32,22 @@ export async function POST(req: NextRequest) {
 }
 
 //GET
-export async function GET() {
+export async function GET(req: NextRequest) {
   console.log('🚀 GET /api/weightRecord');
   try {
+    const petId = req.nextUrl.searchParams.get('petId');
+    if (petId) {
+      const useCase = new GetWeightRecordsByPetIdUseCase(repository);
+      const result = await useCase.execute(petId);
+      return NextResponse.json(result, { status: 200 });
+    }
+
     const useCase = new GetAllWeightRecordsUseCase(repository);
     const result = await useCase.execute();
-
     return NextResponse.json(result, { status: 200 });
 
   } catch (error: unknown) {
-    const message = error instanceof Error
-      ? error.message : 'Error interno';
+    const message = error instanceof Error ? error.message : 'Error interno';
     return NextResponse.json({ error: message }, { status: 500 });
   }
 }
