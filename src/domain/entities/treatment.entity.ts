@@ -33,6 +33,21 @@ export class Treatment {
   get createdAt(): Date { return this.props.createdAt; }
   get updatedAt(): Date { return this.props.updatedAt; }
 
+  isActive(): boolean {
+    if (!this.props.endDate) return true;
+    return this.props.endDate > new Date();
+  }
+
+  updateDates(startDate?: Date, endDate?: Date | null): void {
+    if (startDate) {
+      this.props.startDate = startDate;
+    }
+    if (endDate !== undefined) {
+      this.props.endDate = endDate;
+    }
+    this.props.updatedAt = new Date();
+  }
+
   toJSON() {
     return {
       id: this.id,
@@ -41,6 +56,7 @@ export class Treatment {
       startDate: this.startDate.toISOString().split('T')[0],
       endDate: this.endDate?.toISOString().split('T')[0] || null,
       notes: this.notes,
+      isActive: this.isActive(),
       createdAt: this.createdAt.toISOString(),
       updatedAt: this.updatedAt.toISOString(),
     };

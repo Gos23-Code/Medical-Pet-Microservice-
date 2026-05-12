@@ -63,4 +63,22 @@ export class SupabaseTreatmentRepository implements TreatmentRepository {
     if (error || !data) return null;
     return this.toDomain(data as SupabaseTreatmentRecord);
   }
+
+  // ✅ AGREGAR EL MÉTODO UPDATE
+  async update(treatment: Treatment): Promise<Treatment> {
+    const { data, error } = await this.supabase
+      .from('treatments')
+      .update({
+        start_date: treatment.startDate.toISOString().split('T')[0],
+        end_date: treatment.endDate?.toISOString().split('T')[0] || null,
+        notes: treatment.notes,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', treatment.id)
+      .select()
+      .single();
+
+    if (error) throw new Error(`Error al actualizar: ${error.message}`);
+    return this.toDomain(data as SupabaseTreatmentRecord);
+  }
 }
