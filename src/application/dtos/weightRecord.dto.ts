@@ -1,4 +1,5 @@
-export interface CreateWeightRecordDto {  
+export interface CreateWeightRecordDto {
+  petId: string; 
   weight: number;
   date?: string;
   note?: string;
@@ -25,6 +26,12 @@ export interface weightRecordListResponseDto{
 export interface weightRecordByPetIdResponseDto {
   petId: string;
   weight?: number;
+}
+
+export interface weightRecordLatestResponseDto {
+  petId: string;
+  weight?: number;
+  date?: string;
 }
 
 export interface UpdateWeightRecordDto{

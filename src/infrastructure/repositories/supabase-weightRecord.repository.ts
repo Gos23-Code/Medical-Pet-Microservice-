@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { weightRecord } from '../../domain/entities/weightRecord.entity';
 import { weightRecordRepository } from '../../domain/repositories/weightRecord.repository';
-import { weightRecordListResponseDto, weightRecordResponseDto, weightRecordByPetIdResponseDto } from '@/src/application/dtos/weightRecord.dto';
+import { weightRecordListResponseDto, weightRecordResponseDto, weightRecordByPetIdResponseDto, weightRecordLatestResponseDto } from '@/src/application/dtos/weightRecord.dto';
 
 //Interfas para GetAll
 interface SupabaseWeightRecord {
@@ -25,6 +25,7 @@ export class SupabaseWeightRecordRepository implements weightRecordRepository {
   const { data, error } = await createClient()
     .from('WeightRecord')
     .insert({
+      PetId: record.petId ?? null,
       Weight: record.weight ?? null,
       Date: record.date
         ? record.date.toISOString().split('T')[0]
@@ -90,6 +91,27 @@ export class SupabaseWeightRecordRepository implements weightRecordRepository {
     weight: item.Weight ?? undefined,
     }));
   
+  }
+
+  //GetLatestByPetId
+  async getLatestByPetId(petId: string): Promise<weightRecordLatestResponseDto> {
+    const { data, error } = await createClient()
+    .from('WeightRecord')
+    .select('PetId, Weight, Date')
+    .eq('PetId', petId)
+    .order('Created_at', { ascending: false })
+    .limit(1)
+    .single();
+
+    if (error) {
+      throw new Error(`Error obteniendo último peso: ${error.message}`);
+    }
+
+    return {
+      petId: data.PetId,
+      weight: data.Weight ?? undefined,
+      date: data.Date ?? undefined,
+    };
   }
 
   //Update

@@ -4,6 +4,7 @@ import { GetAllWeightRecordsUseCase } from '@/src/application/use-cases/get-all-
 import { GetWeightRecordsByPetIdUseCase } from '@/src/application/use-cases/get-weightRecords-byPetId.use-case';
 import { UpdateWeightRecordUseCase} from '@/src/application/use-cases/update-weightRecord.use-case';
 import { SupabaseWeightRecordRepository } from '@/src/infrastructure/repositories/supabase-weightRecord.repository';
+import { GetLatestWeightRecordByPetIdUseCase } from '@/src/application/use-cases/get-latest-weightRecord-byPetId.use-case';
 
 const repository = new SupabaseWeightRecordRepository();
 
@@ -14,6 +15,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
 
     const dto = {
+      petId: body.petId,
       weight: body.weight,
       date: body.date,
       note: body.note,
@@ -36,12 +38,23 @@ export async function GET(req: NextRequest) {
   console.log('🚀 GET /api/weightRecord');
   try {
     const petId = req.nextUrl.searchParams.get('petId');
+    const latest = req.nextUrl.searchParams.get('latest');
+
+    //GetLatest - /api/weightRecord?petId=...&latest=true
+    if (petId){
+      const useCase = new GetLatestWeightRecordByPetIdUseCase(repository);
+      const result = await useCase.execute(petId);
+      return NextResponse.json(result, { status: 200 });
+    }
+
+    ///GetWeightRecordByPetId - api/weightRecord?petId=...
     if (petId) {
       const useCase = new GetWeightRecordsByPetIdUseCase(repository);
       const result = await useCase.execute(petId);
       return NextResponse.json(result, { status: 200 });
     }
 
+    //GetAll - /api/weightRecord
     const useCase = new GetAllWeightRecordsUseCase(repository);
     const result = await useCase.execute();
     return NextResponse.json(result, { status: 200 });
