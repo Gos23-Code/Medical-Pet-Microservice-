@@ -88,6 +88,7 @@ describe('Treatment Entity', () => {
         startDate: validStartDate.toISOString().split('T')[0],
         endDate: validEndDate.toISOString().split('T')[0],
         notes: validNotes,
+        isActive: expect.any(Boolean),
         createdAt: expect.any(String),
         updatedAt: expect.any(String),
       });
@@ -107,6 +108,7 @@ describe('Treatment Entity', () => {
 
       expect(json.endDate).toBeNull();
       expect(json.notes).toBeNull();
+      expect(json.isActive).toBe(true);
     });
   });
 });

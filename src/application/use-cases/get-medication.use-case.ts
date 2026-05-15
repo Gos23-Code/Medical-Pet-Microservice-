@@ -1,37 +1,37 @@
-import { createClient } from '@/lib/supabase/client';
 import { MedicationFromService } from '../dtos/treatment.dto';
 
 export class GetMedicationsUseCase {
+  private medicationServiceUrl: string;
+
+  constructor() {
+    this.medicationServiceUrl = process.env.MEDICATION_SERVICE_URL || 'http://localhost:3002';
+  }
+
   async execute(treatmentId: string): Promise<MedicationFromService[]> {
     if (!treatmentId) {
       throw new Error('El ID del tratamiento es requerido');
     }
 
     try {
-      const supabase = createClient();
-      
-      const { data, error } = await supabase
-        .from('medications')
-        .select('*')
-        .eq('treatment_id', treatmentId)
-        .order('created_at', { ascending: false });
-      
-      if (error) {
-        console.error('Error fetching medications from Supabase:', error);
+      const response = await fetch(
+        `${this.medicationServiceUrl}/api/medications?treatmentId=${treatmentId}`,
+        {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      if (!response.ok) {
+        console.warn(`Medication service responded with status: ${response.status}`);
         return [];
       }
-      
-      return (data || []).map(med => ({
-        id: med.id,
-        treatmentId: med.treatment_id,
-        name: med.name,
-        dosage: med.dosage,
-        frequency: med.frequency,
-        duration: med.duration,
-        createdAt: med.created_at,
-      }));
+
+      const data = await response.json();
+      return data.data || [];
     } catch (error) {
-      console.error('Error in GetMedicationsUseCase:', error);
+      console.warn('Error fetching medications:', error);
       return [];
     }
   }
