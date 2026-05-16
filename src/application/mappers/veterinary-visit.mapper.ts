@@ -3,6 +3,10 @@ import { VisitResponseDTO } from '../dtos/veterinary-visit.dto';
 
 export class VeterinaryVisitMapper {
   static toDTO(visit: VeterinaryVisit): VisitResponseDTO {
+    // Convertir null a undefined para la respuesta
+    const weightValue = visit.weight?.value;
+    const temperatureValue = visit.temperature?.value;
+    
     return {
       id: visit.id,
       petId: visit.petId,
@@ -11,8 +15,8 @@ export class VeterinaryVisitMapper {
       diagnosis: visit.diagnosis,
       veterinarian: visit.veterinarian,
       notes: visit.notes,
-      weight: visit.weight,
-      temperature: visit.temperature,
+      weight: weightValue === null ? undefined : weightValue,
+      temperature: temperatureValue === null ? undefined : temperatureValue,
       createdAt: visit.createdAt.toISOString(),
       updatedAt: visit.updatedAt.toISOString(),
     };

@@ -1,3 +1,6 @@
+import { Weight } from '../value-objects/weight.vo';
+import { Temperature } from '../value-objects/temperature.vo';
+
 export interface VeterinaryVisitProps {
   id: string;
   petId: string;
@@ -6,8 +9,8 @@ export interface VeterinaryVisitProps {
   diagnosis?: string;
   veterinarian: string;
   notes?: string;
-  weight?: number;
-  temperature?: number;
+  weight?: Weight;
+  temperature?: Temperature;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -28,17 +31,17 @@ export class VeterinaryVisit {
   }
 
   // Getters
-  get id() { return this.props.id; }
-  get petId() { return this.props.petId; }
-  get date() { return this.props.date; }
-  get reason() { return this.props.reason; }
-  get diagnosis() { return this.props.diagnosis; }
-  get veterinarian() { return this.props.veterinarian; }
-  get notes() { return this.props.notes; }
-  get weight() { return this.props.weight; }
-  get temperature() { return this.props.temperature; }
-  get createdAt() { return this.props.createdAt; }
-  get updatedAt() { return this.props.updatedAt; }
+  get id(): string { return this.props.id; }
+  get petId(): string { return this.props.petId; }
+  get date(): Date { return this.props.date; }
+  get reason(): string { return this.props.reason; }
+  get diagnosis(): string | undefined { return this.props.diagnosis; }
+  get veterinarian(): string { return this.props.veterinarian; }
+  get notes(): string | undefined { return this.props.notes; }
+  get weight(): Weight | undefined { return this.props.weight; }
+  get temperature(): Temperature | undefined { return this.props.temperature; }
+  get createdAt(): Date { return this.props.createdAt; }
+  get updatedAt(): Date { return this.props.updatedAt; }
 
   // Métodos de negocio
   updateDiagnosis(diagnosis: string): void {
@@ -63,10 +66,10 @@ export class VeterinaryVisit {
       diagnosis: this.diagnosis,
       veterinarian: this.veterinarian,
       notes: this.notes,
-      weight: this.weight,
-      temperature: this.temperature,
-      createdAt: this.createdAt,
-      updatedAt: this.updatedAt,
+      weight: this.weight?.value,
+      temperature: this.temperature?.value,
+      createdAt: this.createdAt.toISOString(),
+      updatedAt: this.updatedAt.toISOString(),
     };
   }
 }

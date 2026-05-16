@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/client';
 import { VeterinaryVisit } from '@/src/domain/entities/veterinary-visit.entity';
 import { VeterinaryVisitRepository } from '@/src/domain/repositories/veterinary-visit.repository';
+import { Weight } from '@/src/domain/value-objects/weight.vo';
+import { Temperature } from '@/src/domain/value-objects/temperature.vo';
 
 interface SupabaseVisitRecord {
   id: string;
@@ -42,8 +44,12 @@ export class SupabaseVisitRepository implements VeterinaryVisitRepository {
       diagnosis: record.diagnosis || undefined,
       veterinarian: record.veterinarian,
       notes: record.notes || undefined,
-      weight: record.weight || undefined,
-      temperature: record.temperature || undefined,
+      weight: record.weight !== null && record.weight !== undefined 
+        ? new Weight(record.weight) 
+        : undefined,
+      temperature: record.temperature !== null && record.temperature !== undefined 
+        ? new Temperature(record.temperature) 
+        : undefined,
       createdAt: new Date(record.created_at),
       updatedAt: new Date(record.updated_at),
     });
@@ -58,8 +64,8 @@ export class SupabaseVisitRepository implements VeterinaryVisitRepository {
       diagnosis: visit.diagnosis || null,
       veterinarian: visit.veterinarian,
       notes: visit.notes || null,
-      weight: visit.weight || null,
-      temperature: visit.temperature || null,
+      weight: visit.weight?.value !== undefined ? visit.weight.value : null,
+      temperature: visit.temperature?.value !== undefined ? visit.temperature.value : null,
       created_at: visit.createdAt.toISOString(),
       updated_at: visit.updatedAt.toISOString(),
     };
