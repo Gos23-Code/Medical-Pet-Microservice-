@@ -27,3 +27,16 @@ export interface VisitResponseDTO {
   createdAt: string;
   updatedAt: string;
 }
+
+export interface TreatmentResponse {
+  id: string;
+  visitId: string;
+  description: string;
+  startDate: string;
+  endDate: string | null;
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+  isActive: boolean;
+  activeStatus: 'ACTIVE' | 'ACTIVE_INDEFINITE' | 'ACTIVE_LAST_DAY' | 'EXPIRED' | null;
+}
