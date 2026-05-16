@@ -22,7 +22,7 @@ describe('UpdateWeightRecordUseCase', () => {
   });
 
   // Actualiza
-  it('debe actualizar el peso y retornar el registro actualizado', async () => {
+  it('Debe actualizar el peso y devolver el registro actualizado', async () => {
     const useCase = new UpdateWeightRecordUseCase(mockRepository);
 
     const result = await useCase.execute(
@@ -35,7 +35,7 @@ describe('UpdateWeightRecordUseCase', () => {
   });
 
   //llama al repositorio
-  it('debe llamar a updateWeightByPetId con petId y weight correctos', async () => {
+  it('Debe llamar a updateWeightByPetId con petId y weight correctos', async () => {
     const useCase = new UpdateWeightRecordUseCase(mockRepository);
 
     await useCase.execute(
@@ -50,7 +50,7 @@ describe('UpdateWeightRecordUseCase', () => {
   });
 
   //lama al repositorio una vez
-  it('debe llamar al repositorio una sola vez', async () => {
+  it('Llamar al repositorio', async () => {
     const useCase = new UpdateWeightRecordUseCase(mockRepository);
 
     await useCase.execute(
@@ -62,7 +62,7 @@ describe('UpdateWeightRecordUseCase', () => {
   });
 
   //lanza error si weight es 0
-  it('debe lanzar error si el peso es 0', async () => {
+  it('Debe lanzar error si el peso es 0', async () => {
     const useCase = new UpdateWeightRecordUseCase(mockRepository);
 
     await expect(
@@ -71,7 +71,7 @@ describe('UpdateWeightRecordUseCase', () => {
   });
 
   //lanza error si weight es negativo
-  it('debe lanzar error si el peso es negativo', async () => {
+  it('Debe lanzar error si el peso es negativo', async () => {
     const useCase = new UpdateWeightRecordUseCase(mockRepository);
 
     await expect(
@@ -80,7 +80,7 @@ describe('UpdateWeightRecordUseCase', () => {
   });
 
   //lanza error si el repositorio falla
-  it('debe lanzar error si el repositorio falla', async () => {
+  it('Debe lanzar error si el repositorio falla', async () => {
     const failRepository: weightRecordRepository = {
       save: jest.fn(),
       findAll: jest.fn(),

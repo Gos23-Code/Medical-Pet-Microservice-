@@ -3,7 +3,7 @@ import { weightRecord } from '@/src/domain/entities/weightRecord.entity';
 describe('weightRecord Entity', () => {
 
   //Crea un registro
-  it('debe crear un weightRecord con los datos correctos', () => {
+  it('Debe crear un weightRecord con los datos correctos', () => {
     const record = weightRecord.create({
       weight: 4.5,
       date: new Date('2025-05-01'),
@@ -16,7 +16,7 @@ describe('weightRecord Entity', () => {
   });
 
   //Crear sin campos opcionales
-  it('debe crear un weightRecord sin date ni note', () => {
+  it('Debe crear un weightRecord sin date ni note', () => {
     const record = weightRecord.create({
       weight: 3.2,
     });
@@ -27,7 +27,7 @@ describe('weightRecord Entity', () => {
   });
 
   //"CreatedAt" se genera automáticamente
-  it('debe asignar createdAt automáticamente', () => {
+  it('Debe asignar createdAt automáticamente', () => {
     const antes = new Date();
     const record = weightRecord.create({ weight: 5.0 });
     const despues = new Date();
