@@ -1,0 +1,19 @@
+export interface CreateLabTestDto {
+  name: string;
+  result?: string;
+  normal_range?: string;
+  date?: string;
+  notes?: string;
+}
+
+export interface LabTestResponseDto {
+  message: string;
+  id: string;
+  visit_id: string;
+  name: string;
+  result?: string;
+  normal_range?: string;
+  date?: string;
+  notes?: string;
+  created_at: string;
+}
