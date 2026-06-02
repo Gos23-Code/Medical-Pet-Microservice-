@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { LabTest } from '@/src/domain/entities/lasbTest.entity';
 import { LabTestRepository } from '../../domain/repositories/labTest.repository';
-import { LabTestResponseDto } from '../../application/dtos/labTest.dto';
+import { labTestListResponseDto, LabTestResponseDto } from '../../application/dtos/labTest.dto';
 
 // Interfaz para los datos en Supabase
 interface SupabaseLabTest {
@@ -49,5 +49,31 @@ export class SupabaseLabTestRepository implements LabTestRepository {
       notes: record.notes ?? undefined,
       created_at: new Date(record.created_at).toISOString(),
     };
+  }
+
+  //GetByVisitId
+  async findByVisistId(visit_id: string): Promise<labTestListResponseDto[]> {
+    const {data, error}= await createClient()
+    .from('lab_tests')
+    .select('*')
+    .eq('visit_id', visit_id)
+    .order('created_at', {ascending: false});
+
+    if(error){
+      throw new Error(`Error en lab tests: ${error.message}`);
+    }
+    if(!data|| data.length===0){
+      throw new Error(`No se encontró lab test con visit_id: ${visit_id}`);
+    }
+    return data.map((item: SupabaseLabTest)=>({
+      id: item.id,
+      visit_id: item.visit_id,
+      name: item.name,
+      result: item.result ?? undefined,
+      normal_range: item.normal_range ?? undefined,
+      date: item.date ?? undefined,
+      notes: item.notes ?? undefined,
+      created_at: new Date(item.created_at).toISOString(),
+    }));
   }
 }

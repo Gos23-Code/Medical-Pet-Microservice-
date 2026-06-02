@@ -17,3 +17,15 @@ export interface LabTestResponseDto {
   notes?: string;
   created_at: string;
 }
+
+//Get
+export interface labTestListResponseDto{
+  id: string;
+  visit_id: string;
+  name: string;
+  result?: string;
+  normal_range?: string;
+  date?: string;
+  notes?: string;
+  created_at: string;
+}
