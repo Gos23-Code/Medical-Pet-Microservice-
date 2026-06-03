@@ -76,4 +76,34 @@ export class SupabaseLabTestRepository implements LabTestRepository {
       created_at: new Date(item.created_at).toISOString(),
     }));
   }
+
+  //UpdateResultByVisit_id
+  async updateResultByVisitId(visit_id: string, result: string): Promise<LabTestResponseDto> {
+    const {data, error}= await createClient()
+    .from('lab_tests')
+    .update({result: result})
+    .eq('visit_id', visit_id)
+    .select()
+    .limit(1)
+    .single();
+    
+    if(error){
+      throw new Error(`Error al actualizar resultado:: ${error.message}`);
+    }
+    if(!data){
+      throw new Error(`No se encontró lab test con visit_id: ${visit_id}`);
+    }
+    const record = data as SupabaseLabTest;
+    return{
+      message: 'Resultado actualizado',
+      id: record.id,
+      visit_id: record.visit_id,
+      name: record.name,
+      result: record.result ?? undefined,
+      normal_range: record.normal_range ?? undefined,
+      date: record.date ?? undefined,
+      notes: record.notes ?? undefined,
+      created_at: new Date(record.created_at).toISOString(),
+    };
+  }
 }

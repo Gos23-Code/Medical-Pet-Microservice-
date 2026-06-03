@@ -3,6 +3,7 @@ import { AddLabTestUseCase } from '@/src/application/use-cases/add-labTest.use-c
 import { SupabaseLabTestRepository } from '@/src/infrastructure/repositories/supabase-labTest.repository';
 import { error } from 'console';
 import { GetLabTestsByVisitIdUseCase } from '@/src/application/use-cases/get-labTests-byVisitId.use-case';
+import { UpdateLabTestResultUseCase } from '@/src/application/use-cases/update-labTestResult.use-case';
 
 const repository = new SupabaseLabTestRepository();
 
@@ -58,5 +59,36 @@ export async function POST(req: NextRequest) {
     }catch(error:unknown){
       const message= error instanceof Error? error.message: 'Error interno';
       return NextResponse.json({erro: message}, {status:500});
+    }
+  }
+    //Update
+  export async function PATCH(req: NextRequest) {
+  console.log('🚀 PATCH /api/labTests');
+  try {
+    const visit_id = req.nextUrl.searchParams.get('visit_id');
+
+    if (!visit_id) {
+      return NextResponse.json(
+        { error: 'visit_id es requerido' },
+        { status: 400 }
+      );
+    }
+
+    const body = await req.json();
+
+    if (!body.result) {
+      return NextResponse.json(
+        { error: 'result es requerido' },
+        { status: 400 }
+      );
+    }
+
+    const useCase = new UpdateLabTestResultUseCase(repository);
+    const result = await useCase.execute(visit_id, { result: body.result });
+    return NextResponse.json(result, { status: 200 });
+
+    } catch (error: unknown) {
+    const message = error instanceof Error ? error.message : 'Error interno';
+    return NextResponse.json({ error: message }, { status: 500 });
     }
 }

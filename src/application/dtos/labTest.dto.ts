@@ -29,3 +29,8 @@ export interface labTestListResponseDto{
   notes?: string;
   created_at: string;
 }
+
+//UpdateResult
+export interface UpdateLabTestResultDto{
+  result: string;
+}
