@@ -4,6 +4,7 @@ import { SupabaseLabTestRepository } from '@/src/infrastructure/repositories/sup
 import { error } from 'console';
 import { GetLabTestsByVisitIdUseCase } from '@/src/application/use-cases/get-labTests-byVisitId.use-case';
 import { UpdateLabTestResultUseCase } from '@/src/application/use-cases/update-labTestResult.use-case';
+import { CheckLabTestIsNormalUseCase } from '@/src/application/use-cases/check-labTest-isNormal.use-case';
 
 const repository = new SupabaseLabTestRepository();
 
@@ -46,12 +47,20 @@ export async function POST(req: NextRequest) {
     console.log('🚀 GET /api/labTests');
     try{
       const visit_id= req.nextUrl.searchParams.get('visit_id');
+      const isNormal = req.nextUrl.searchParams.get('isNormal');
 
       if(!visit_id){
         return NextResponse.json({error: 'visit_id es requerido'},
           {status: 400}
         );
       }
+
+      if (isNormal === 'true') {
+      const useCase = new CheckLabTestIsNormalUseCase(repository);
+      const result = await useCase.execute(visit_id);
+      return NextResponse.json(result, { status: 200 });
+    }
+    
       const useCase= new GetLabTestsByVisitIdUseCase(repository);
       const result= await useCase.execute(visit_id);
       return NextResponse.json(result, {status: 200})
@@ -66,6 +75,7 @@ export async function POST(req: NextRequest) {
   console.log('🚀 PATCH /api/labTests');
   try {
     const visit_id = req.nextUrl.searchParams.get('visit_id');
+    const isNormal = req.nextUrl.searchParams.get('isNormal');
 
     if (!visit_id) {
       return NextResponse.json(

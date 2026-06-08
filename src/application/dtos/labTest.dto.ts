@@ -34,3 +34,11 @@ export interface labTestListResponseDto{
 export interface UpdateLabTestResultDto{
   result: string;
 }
+
+//Boolean IsNormal
+export interface LabTestIsNormalResponseDto {
+  name: string;
+  result: string;
+  normal_range: string;
+  is_normal: boolean;
+}
