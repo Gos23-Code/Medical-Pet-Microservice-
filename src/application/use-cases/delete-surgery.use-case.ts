@@ -16,8 +16,8 @@ export class DeleteSurgeryUseCase {
       throw new Error(`Surgery with id ${id} not found`);
     }
     
-    // Validar que no esté en progreso o completada
-    if (surgery.status === 'IN_PROGRESS') {
+    // Validar que no esté en progreso, complicada o completada
+    if (surgery.status === 'IN_PROGRESS' || surgery.status === 'COMPLICATED') {
       throw new Error('Cannot delete a surgery that is in progress');
     }
     

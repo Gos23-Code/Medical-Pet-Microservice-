@@ -1,5 +1,5 @@
 # Dependencias
-/node_modules
+node_modules/
 /.pnp
 .pnp.js
 .pnp.*
@@ -13,12 +13,8 @@
 # Next.js
 /.next/
 /out/
-/build
-/dist
-
-# Producción
-/build
-/dist
+/build/
+/dist/
 
 # Archivos de entorno
 .env.local
@@ -28,18 +24,12 @@
 .env*.local
 .env
 
-# Base de datos
-*.db
-*.sqlite
-*.sqlite3
-
-# Supabase
-supabase/.branches
-supabase/.temp
-supabase/temp
+# Archivos de TypeScript
+*.tsbuildinfo
+next-env.d.ts
 
 # Logs
-logs
+logs/
 *.log
 npm-debug.log*
 yarn-debug.log*
@@ -47,11 +37,12 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-# Reportes de cobertura
-/coverage
-.nyc_output
+# Testing
+/coverage/
+.nyc_output/
+/junit.xml
 
-# IDE y editores
+# Editor/IDE
 .vscode/
 .idea/
 *.swp
@@ -64,59 +55,28 @@ lerna-debug.log*
 *.sln
 *.sw?
 
-# Sistema operativo
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
+# Configuración de sistemas
 Thumbs.db
-desktop.ini
+Desktop.ini
 
-# Archivos de TypeScript
-*.tsbuildinfo
+# Archivos de cobertura y reportes
+.eslintcache
+.stylelintcache
+.rpt2_cache/
+.rts2_cache_cjs/
+.rts2_cache_es/
+.rts2_cache_umd/
 
 # Archivos temporales
-*.tmp
 *.temp
-.cache
+*.tmp
+.cache/
 
-# Configuración local
-*.local
+# Archivos específicos de tu proyecto
+/next.config.ts
+/postcss.config.mjs
+/tsconfig.tsbuildinfo
 
-# MCP servers
-.mcp/
-
-# Debug
-debug.log
-.vscode-test/
-
-# ESLint
-.eslintcache
-
-# Next.js específico
-.next/cache/
-.next/dev/
-
-# Public
-/public/icons/*
-!/public/icons/.gitkeep
-/public/uploads/*
-!/public/uploads/.gitkeep
-
-# Documentos de especificación (opcional - comenta si quieres trackearlos)
-AGENTS.md
-CLAUDE.md
-
-# Archivos de backup
-*.bak
-*.backup
-*.old
-
-# Memoria
-*.heapdump
-*.profile
-
-# Turborepo (si usas)
-.turbo
+# Archivos de documentación personal (mantén AGENTS.md y CLAUDE.md si son importantes)
+# AGENTS.md
+# CLAUDE.md

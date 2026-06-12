@@ -1,3 +1,4 @@
+// src/domain/entities/petSurgery.entity.ts
 export type PetSurgeryStatus = 
   | 'SCHEDULED' 
   | 'IN_PROGRESS' 
@@ -9,7 +10,6 @@ export type PetSurgeryOutcome =
   | 'SUCCESSFUL' 
   | 'COMPLICATIONS' 
   | 'DECEASED';
-
 
 export interface PetSurgeryProps {
   id: string;
@@ -61,8 +61,20 @@ export class PetSurgery {
   public get createdAt(): Date { return this.props.createdAt; }
   public get updatedAt(): Date { return this.props.updatedAt; }
 
-  public update(props: Partial<Omit<PetSurgeryProps, 'id' | 'createdAt' | 'petId' | 'veterinaryVisitId'>>): void {
-    Object.assign(this.props, props);
+  public update(data: Partial<Omit<PetSurgeryProps, 'id' | 'createdAt'>>): void {
+    // Actualizar campos
+    if (data.title !== undefined) this.props.title = data.title;
+    if (data.description !== undefined) this.props.description = data.description;
+    if (data.surgeryDate !== undefined) this.props.surgeryDate = data.surgeryDate;
+    if (data.durationMinutes !== undefined) this.props.durationMinutes = data.durationMinutes;
+    if (data.anesthesiaUsed !== undefined) this.props.anesthesiaUsed = data.anesthesiaUsed;
+    if (data.complications !== undefined) this.props.complications = data.complications;
+    if (data.postOpInstructions !== undefined) this.props.postOpInstructions = data.postOpInstructions;
+    if (data.outcome !== undefined) this.props.outcome = data.outcome;
+    if (data.status !== undefined) this.props.status = data.status;
+    if (data.nextCheckupDate !== undefined) this.props.nextCheckupDate = data.nextCheckupDate;
+    
+    // Siempre actualizar la fecha de modificación
     this.props.updatedAt = new Date();
   }
 
