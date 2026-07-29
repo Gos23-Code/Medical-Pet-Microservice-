@@ -1,0 +1,20 @@
+services:
+  medical-pet-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    image: medical-pet-backend:latest
+    container_name: medical-pet-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      # Descomenta y ajusta si registras la app en un Eureka server:
+      # APP_HOST: medical-pet-backend
+      # EUREKA_HOST: eureka-server
+      # EUREKA_PORT: 8761
