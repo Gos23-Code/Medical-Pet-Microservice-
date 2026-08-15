@@ -1,0 +1,29 @@
+services:
+  medical-pet-backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+    image: medical-pet-backend:latest
+    container_name: medical-pet-backend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
+      # Nombre por el que este servicio se registra en Eureka y lo ven los demás.
+      # Debe coincidir con el "container_name"/nombre de servicio de este bloque.
+      APP_HOST: medical-pet-backend
+      # Nombre del servicio de Eureka en la red compartida (ajusta al nombre real
+      # que use el docker-compose del Eureka server).
+      EUREKA_HOST: eureka-server
+      EUREKA_PORT: 8761
+    networks:
+      - microservicios-net
+
+networks:
+  microservicios-net:
+    external: true
