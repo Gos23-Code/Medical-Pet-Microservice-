@@ -9,4 +9,6 @@ coverage
 *.md
 .vscode
 .idea
+Dockerfile
+docker-compose.yml
 .dockerignore
