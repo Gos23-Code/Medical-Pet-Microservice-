@@ -13,7 +13,7 @@ function withCorsHeaders(response: NextResponse) {
   );
   response.headers.set(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization"
+    "Content-Type, Authorization, bypass-tunnel-reminder"
   );
   return response;
 }
