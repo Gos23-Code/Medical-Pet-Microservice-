@@ -1,0 +1,8 @@
+{
+  // Esto es un comentario válido en JSON5
+  compilerOptions: {
+    target: "ES2017",
+    lib: ["dom", "dom.iterable", "esnext"],
+    // Más opciones...
+  }
+}
