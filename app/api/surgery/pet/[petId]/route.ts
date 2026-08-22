@@ -9,9 +9,12 @@ const getSurgeriesUseCase = new GetSurgeriesUseCase(repository);
 // GET /api/pet-surgery/pet/[petId]?status=xxx&fromDate=xxx&toDate=xxx
 export async function GET(
   request: NextRequest,
-  { params }: { params: { petId: string } }
+  { params }: { params: Promise<{ petId: string }> }  // 👈 CAMBIO: Promise<{ petId: string }>
 ) {
   try {
+    // 👈 CAMBIO: Await para params
+    const { petId } = await params;
+    
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
     const fromDate = searchParams.get('fromDate');
@@ -19,7 +22,7 @@ export async function GET(
     const includeStats = searchParams.get('stats') === 'true';
 
     const filters = {
-      petId: params.petId,
+      petId: petId, // 👈 Usar la variable extraída
       status: status || undefined,
       fromDate: fromDate ? new Date(fromDate) : undefined,
       toDate: toDate ? new Date(toDate) : undefined,

@@ -43,9 +43,6 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Config usada en runtime (ej. cliente de Eureka)
-COPY --from=builder --chown=nextjs:nodejs /app/config ./config
-
 USER nextjs
 
 EXPOSE 3000
