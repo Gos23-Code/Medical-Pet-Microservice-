@@ -5,6 +5,9 @@ import { TreatmentRepository, TreatmentWithMedicationsResult } from '@/src/domai
 export class GetTreatmentUseCase {
   constructor(private repository: TreatmentRepository) {}
 
+  // Sobrecargas: le dicen a TypeScript qué tipo devuelve según el argumento
+  execute(id: string, includeMedications?: false): Promise<Treatment>;
+  execute(id: string, includeMedications: true): Promise<TreatmentWithMedicationsResult>;
   async execute(id: string, includeMedications: boolean = false): Promise<Treatment | TreatmentWithMedicationsResult> {
     if (includeMedications) {
       const result = await this.repository.findByIdWithMedications(id);
