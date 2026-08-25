@@ -1,6 +1,7 @@
+// src/infrastructure/database/repositories/supabase-treatment.repository.ts
 import { createClient } from '@/src/infrastructure/database/supabase/client';
 import { Treatment } from '@/src/domain/entities/treatment.entity';
-import { TreatmentRepository } from '@/src/domain/repositories/treatment.repository';
+import { TreatmentRepository, TreatmentWithMedicationsResult, Medication } from '@/src/domain/repositories/treatment.repository';
 
 interface SupabaseTreatmentRecord {
   id: string;
@@ -9,6 +10,17 @@ interface SupabaseTreatmentRecord {
   start_date: string;
   end_date: string | null;
   notes: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface SupabaseMedicationRecord {
+  id: string;
+  treatment_id: string;
+  name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
   created_at: string;
   updated_at: string;
 }
@@ -27,6 +39,19 @@ export class SupabaseTreatmentRepository implements TreatmentRepository {
       createdAt: new Date(record.created_at),
       updatedAt: new Date(record.updated_at),
     });
+  }
+
+  private toDomainMedication(record: SupabaseMedicationRecord): Medication {
+    return {
+      id: record.id,
+      treatmentId: record.treatment_id,
+      name: record.name,
+      dosage: record.dosage,
+      frequency: record.frequency,
+      duration: record.duration,
+      createdAt: new Date(record.created_at),
+      updatedAt: new Date(record.updated_at),
+    };
   }
 
   private toPersistence(treatment: Treatment) {
@@ -64,7 +89,33 @@ export class SupabaseTreatmentRepository implements TreatmentRepository {
     return this.toDomain(data as SupabaseTreatmentRecord);
   }
 
-  // ✅ AGREGAR EL MÉTODO UPDATE
+  // 👈 NUEVO: Obtener tratamiento con sus medicamentos
+  async findByIdWithMedications(id: string): Promise<TreatmentWithMedicationsResult | null> {
+    // Primero obtener el tratamiento
+    const treatment = await this.findById(id);
+    if (!treatment) return null;
+
+    // Luego obtener sus medicamentos
+    const { data: medications, error } = await this.supabase
+      .from('medications')
+      .select('*')
+      .eq('treatment_id', id)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching medications:', error);
+      return {
+        treatment, // 👈 Retorna el objeto Treatment directamente
+        medications: []
+      };
+    }
+
+    return {
+      treatment, // 👈 Retorna el objeto Treatment directamente
+      medications: medications?.map(this.toDomainMedication) || []
+    };
+  }
+
   async update(treatment: Treatment): Promise<Treatment> {
     const { data, error } = await this.supabase
       .from('treatments')
