@@ -4,10 +4,11 @@ export interface CreateLabTestDto {
   normal_range?: string;
   date?: string;
   notes?: string;
+  visit_id: string;
 }
 
 export interface LabTestResponseDto {
-  message: string;
+  message?: string;
   id: string;
   visit_id: string;
   name: string;
