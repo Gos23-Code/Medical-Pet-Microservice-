@@ -54,9 +54,6 @@ export class AddSurgeryUseCase {
     if (!command.surgeryDate) {
       throw new Error('Surgery date is required');
     }
-    if (command.surgeryDate < new Date()) {
-      throw new Error('Surgery date cannot be in the past');
-    }
     if (!command.durationMinutes || command.durationMinutes <= 0) {
       throw new Error('Duration must be greater than 0');
     }

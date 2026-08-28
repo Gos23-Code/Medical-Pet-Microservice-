@@ -1,12 +1,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { SupabasePetSurgeryRepository } from '@/src/infrastructure/database/repositories/supabase-pet-surgery.repository';
-import { AddSurgeryUseCase } from '@/src/application/use-cases/surgery/add-surgery.use-case';
 import { GetSurgeriesUseCase } from '@/src/application/use-cases/surgery/get-surgery.use-case';
 import { PetSurgery } from '@/src/domain/entities/pet-surgery.entity';
 
 const repository = new SupabasePetSurgeryRepository();
-const addSurgeryUseCase = new AddSurgeryUseCase(repository);
 const getSurgeriesUseCase = new GetSurgeriesUseCase(repository);
 
 // GET /api/pet-surgery?visitId=xxx&petId=xxx&status=xxx&fromDate=xxx&toDate=xxx
@@ -63,47 +61,3 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/pet-surgery
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json();
-    
-    // Validar campos requeridos
-    const requiredFields = ['petId', 'veterinaryVisitId', 'title', 'description', 'surgeryDate', 'durationMinutes'];
-    const missingFields = requiredFields.filter(field => !body[field]);
-    
-    if (missingFields.length > 0) {
-      return NextResponse.json(
-        { error: `Missing required fields: ${missingFields.join(', ')}` },
-        { status: 400 }
-      );
-    }
-    
-    const surgery = await addSurgeryUseCase.execute({
-      petId: body.petId,
-      veterinaryVisitId: body.veterinaryVisitId,
-      title: body.title,
-      description: body.description,
-      surgeryDate: new Date(body.surgeryDate),
-      durationMinutes: body.durationMinutes,
-      anesthesiaUsed: body.anesthesiaUsed,
-      postOpInstructions: body.postOpInstructions,
-    });
-    
-    return NextResponse.json({ 
-      success: true, 
-      data: surgery.toJSON(),
-      message: 'Surgery created successfully'
-    }, { status: 201 });
-    
-  } catch (error) {
-    console.error('Error creating surgery:', error);
-    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
-    const status = errorMessage.includes('required') ? 400 : 500;
-    
-    return NextResponse.json(
-      { success: false, error: errorMessage },
-      { status }
-    );
-  }
-}
