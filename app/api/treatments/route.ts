@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/src/infrastructure/database/supabase/client';
 import { v4 as uuidv4 } from 'uuid';
+import { createTreatmentsPublisher } from '@/src/infrastructure/pubsub/pubsub.factory';
+
+// ✅ Obtener instancia del publisher
+const treatmentsPublisher = createTreatmentsPublisher();
 
 export async function POST(request: NextRequest) {
   console.log("📝 POST /api/treatments - Creando tratamiento");
@@ -10,6 +14,22 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     
     console.log("📦 Body recibido:", body);
+    
+    // ✅ Validar userId (necesario para notificaciones)
+    if (!body.userId) {
+      return NextResponse.json(
+        { success: false, message: 'userId es requerido para notificaciones' },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Validar petId (necesario para notificaciones)
+    if (!body.petId) {
+      return NextResponse.json(
+        { success: false, message: 'petId es requerido para notificaciones' },
+        { status: 400 }
+      );
+    }
     
     // Validaciones
     if (!body.visitId) {
@@ -41,9 +61,10 @@ export async function POST(request: NextRequest) {
       );
     }
     
-    // Preparar datos - SIN updated_at
+    // Preparar datos
+    const treatmentId = uuidv4();
     const treatmentData = {
-      id: uuidv4(),
+      id: treatmentId,
       visit_id: body.visitId,
       description: body.description,
       start_date: body.startDate,
@@ -66,6 +87,22 @@ export async function POST(request: NextRequest) {
         { success: false, message: error.message },
         { status: 500 }
       );
+    }
+    
+    // ✅ PUBLICAR EN PUB/SUB - Tratamiento iniciado
+    console.log("📤 Publicando evento TREATMENT_STARTED...");
+    try {
+      await treatmentsPublisher.publishTreatmentStarted({
+        treatmentId: treatmentId,
+        petId: body.petId,
+        userId: body.userId,
+        type: body.description,
+        protocol: body.protocol || 'Standard protocol',
+        startedAt: body.startDate,
+      });
+      console.log("✅ Evento TREATMENT_STARTED publicado correctamente");
+    } catch (pubsubError) {
+      console.error("❌ Error publicando en Pub/Sub:", pubsubError);
     }
     
     return NextResponse.json({

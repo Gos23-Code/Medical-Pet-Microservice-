@@ -2,6 +2,8 @@
 import { AddLabTestUseCase } from '@/src/application/use-cases/lab-test/add-lab-test.use-case';
 import { LabTestRepository } from '@/src/domain/repositories/lab-test.repository';
 import { LabTestMapper } from '@/src/application/mappers/lab-test.mapper';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+
 
 jest.mock('@/src/application/mappers/lab-test.mapper');
 

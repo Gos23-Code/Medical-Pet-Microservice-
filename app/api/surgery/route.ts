@@ -1,13 +1,16 @@
-
 import { NextRequest, NextResponse } from 'next/server';
 import { SupabasePetSurgeryRepository } from '@/src/infrastructure/database/repositories/supabase-pet-surgery.repository';
 import { AddSurgeryUseCase } from '@/src/application/use-cases/surgery/add-surgery.use-case';
 import { GetSurgeriesUseCase } from '@/src/application/use-cases/surgery/get-surgery.use-case';
 import { PetSurgery } from '@/src/domain/entities/pet-surgery.entity';
+import { createSurgeryPublisher } from '@/src/infrastructure/pubsub/pubsub.factory';
 
 const repository = new SupabasePetSurgeryRepository();
 const addSurgeryUseCase = new AddSurgeryUseCase(repository);
 const getSurgeriesUseCase = new GetSurgeriesUseCase(repository);
+
+// ✅ Obtener instancia del publisher
+const surgeryPublisher = createSurgeryPublisher();
 
 // GET /api/pet-surgery?visitId=xxx&petId=xxx&status=xxx&fromDate=xxx&toDate=xxx
 export async function GET(request: NextRequest) {
@@ -78,6 +81,14 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // ✅ Validar userId (necesario para notificaciones)
+    if (!body.userId) {
+      return NextResponse.json(
+        { error: 'userId es requerido para notificaciones' },
+        { status: 400 }
+      );
+    }
     
     const surgery = await addSurgeryUseCase.execute({
       petId: body.petId,
@@ -89,6 +100,22 @@ export async function POST(request: NextRequest) {
       anesthesiaUsed: body.anesthesiaUsed,
       postOpInstructions: body.postOpInstructions,
     });
+    
+    // ✅ PUBLICAR EN PUB/SUB - Cirugía programada
+    console.log('📤 Publicando evento SURGERY_SCHEDULED...');
+    try {
+      await surgeryPublisher.publishSurgeryScheduled({
+        surgeryId: surgery.id,
+        petId: body.petId,
+        userId: body.userId,
+        type: body.title,
+        scheduledDate: body.surgeryDate,
+        veterinarian: body.veterinarian || 'pending',
+      });
+      console.log('✅ Evento SURGERY_SCHEDULED publicado correctamente');
+    } catch (pubsubError) {
+      console.error('❌ Error publicando en Pub/Sub:', pubsubError);
+    }
     
     return NextResponse.json({ 
       success: true, 

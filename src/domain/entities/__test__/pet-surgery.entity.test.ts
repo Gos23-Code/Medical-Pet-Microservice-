@@ -1,5 +1,6 @@
 // src/domain/entities/__test__/pet-surgery.entity.test.ts
 import { PetSurgery, PetSurgeryStatus, PetSurgeryOutcome } from '../pet-surgery.entity';
+import { describe, it, expect, beforeAll, beforeEach } from '@jest/globals';
 
 // Mock de crypto.randomUUID directamente en el test
 beforeAll(() => {

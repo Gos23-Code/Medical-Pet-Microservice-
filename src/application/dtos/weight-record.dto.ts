@@ -1,39 +1,76 @@
+// ============================================
+// CREATE WEIGHT RECORD DTO
+// ============================================
 export interface CreateWeightRecordDto {
-  petId: string; 
+  userId: string;  // ✅ AGREGAR - necesario para notificaciones
+  petId: string;
   weight: number;
+  unit?: 'kg' | 'lb';  // ✅ AGREGAR - unidad de peso
   date?: string;
   note?: string;
 }
 
-export interface weightRecordResponseDto{
-  message: string;
+// ============================================
+// UPDATE WEIGHT RECORD DTO
+// ============================================
+export interface UpdateWeightRecordDto {
+  userId: string;  // ✅ AGREGAR - necesario para notificaciones
+  weight: number;
+  unit?: 'kg' | 'lb';  // ✅ AGREGAR - unidad de peso
+  note?: string;
+}
+
+// ============================================
+// RESPONSE DTOs
+// ============================================
+export interface WeightRecordResponseDto {
+  message?: string;
   id: string;
   petId: string;
+  userId: string;  // ✅ AGREGAR
   weight: number;
+  unit: 'kg' | 'lb';  // ✅ AGREGAR
+  date?: string;
+  note?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export interface WeightRecordListResponseDto {
+  id: string;
+  petId: string;
+  userId: string;  // ✅ AGREGAR
+  weight: number;
+  unit: 'kg' | 'lb';  // ✅ AGREGAR
   date?: string;
   note?: string;
   createdAt: string;
 }
 
-export interface weightRecordListResponseDto{
-  id: string;
+export interface WeightRecordByPetIdResponseDto {
   petId: string;
-  weight: number;
-  date?: string;
-  note?: string;
-  createdAt: string;
-}
-export interface weightRecordByPetIdResponseDto {
-  petId: string;
+  userId: string;  // ✅ AGREGAR
   weight?: number;
+  unit?: 'kg' | 'lb';
 }
 
-export interface weightRecordLatestResponseDto {
+export interface WeightRecordLatestResponseDto {
   petId: string;
+  userId: string;  // ✅ AGREGAR
   weight?: number;
+  unit?: 'kg' | 'lb';
   date?: string;
 }
 
-export interface UpdateWeightRecordDto{
-  weight: number;
+// ============================================
+// WEIGHT ALERT DTO (NUEVO)
+// ============================================
+export interface WeightAlertDto {
+  petId: string;
+  userId: string;
+  currentWeight: number;
+  previousWeight: number;
+  percentageChange: number;
+  alertType: 'LOSS' | 'GAIN' | 'SIGNIFICANT_CHANGE';
+  alertedAt: string;
 }

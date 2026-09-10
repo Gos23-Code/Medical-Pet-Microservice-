@@ -1,4 +1,5 @@
 // src/__tests__/domain/use-cases/get-vaccines-by-pet.use-case.test.ts
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { GetVaccinesByPetUseCase } from '@/src/application/use-cases/vaccine/get-vaccine-by-pet.use-case';
 import { IVaccineRepository } from '@/src/domain/repositories/vaccine.repositories';
 import { Vaccine } from '@/src/domain/entities/vaccine.entity';
@@ -11,6 +12,7 @@ describe('GetVaccinesByPetUseCase', () => {
     Vaccine.create(
       'uuid-1',
       'pet-123',
+      'user-123',  // ✅ AGREGAR userId
       'Rabia',
       'LOT-2024-001',
       new Date('2024-01-15'),
@@ -22,6 +24,7 @@ describe('GetVaccinesByPetUseCase', () => {
     Vaccine.create(
       'uuid-2',
       'pet-123',
+      'user-123',  // ✅ AGREGAR userId
       'Moquillo',
       'LOT-2024-002',
       new Date('2024-02-15'),
@@ -38,8 +41,16 @@ describe('GetVaccinesByPetUseCase', () => {
       getByPetId: jest.fn(),
       updateVaccine: jest.fn(),
       deleteVaccine: jest.fn(),
-      getById: jest.fn()
-    };
+      getById: jest.fn(),
+      getPendingVaccines: jest.fn(),
+      incrementReminderCount: jest.fn(),
+      updateLastReminderSent: jest.fn(),
+      markAsOverdue: jest.fn(),
+      markAsApplied: jest.fn(),
+      getVaccinesDueToday: jest.fn(),
+      getOverdueVaccines: jest.fn(),
+    } as jest.Mocked<IVaccineRepository>;
+    
     useCase = new GetVaccinesByPetUseCase(mockRepository);
   });
 

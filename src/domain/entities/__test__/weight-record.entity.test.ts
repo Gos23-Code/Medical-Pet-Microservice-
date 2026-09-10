@@ -1,4 +1,5 @@
 import { weightRecord } from '@/src/domain/entities/weight-record.entity';
+import { describe, it, expect } from '@jest/globals';
 
 describe('weightRecord Entity', () => {
 

@@ -2,6 +2,7 @@
 import { SupabaseWeightRecordRepository } from '../supabase-weight-record.repository';
 import { weightRecord } from '@/src/domain/entities/weight-record.entity';
 import { createClient } from '@/src/infrastructure/database/supabase/client';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 // Mock del cliente de Supabase
 jest.mock('@/src/infrastructure/database/supabase/client');
@@ -9,15 +10,20 @@ jest.mock('@/src/infrastructure/database/supabase/client');
 describe('SupabaseWeightRecordRepository', () => {
   let repository: SupabaseWeightRecordRepository;
   
-  // Mocks para cada método
+  // Mocks que resuelven una promesa deben declarar el retorno como Promise,
+  // si no `mockResolvedValue` espera un argumento de tipo `never`.
+  type SupabaseResult = { data: unknown; error: unknown };
+  type AsyncFn = (...args: unknown[]) => Promise<SupabaseResult>;
+  type AsyncMock = jest.Mock<AsyncFn>;
+
   let mockSelect: jest.Mock;
   let mockInsert: jest.Mock;
   let mockUpdate: jest.Mock;
   let mockEq: jest.Mock;
-  let mockOrder: jest.Mock;
+  let mockOrder: AsyncMock;
   let mockLimit: jest.Mock;
-  let mockSingle: jest.Mock;
-  let mockMaybeSingle: jest.Mock;
+  let mockSingle: AsyncMock;
+  let mockMaybeSingle: AsyncMock;
   let mockFrom: jest.Mock;
 
   const mockPetId = '987fcdeb-51a2-43d7-9b56-2546b7a3c8e9';
@@ -47,17 +53,18 @@ describe('SupabaseWeightRecordRepository', () => {
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Crear mocks para cada método - todos devuelven this para encadenamiento
+    mockSingle = jest.fn<AsyncFn>().mockResolvedValue({ data: mockSupabaseResponse, error: null });
+    mockMaybeSingle = jest.fn<AsyncFn>().mockResolvedValue({ data: mockSupabaseResponse, error: null });
+
     mockSelect = jest.fn().mockReturnThis();
     mockInsert = jest.fn().mockReturnThis();
     mockUpdate = jest.fn().mockReturnThis();
     mockEq = jest.fn().mockReturnThis();
-    mockOrder = jest.fn().mockReturnThis();
     mockLimit = jest.fn().mockReturnThis();
-    mockSingle = jest.fn().mockResolvedValue({ data: mockSupabaseResponse, error: null });
-    mockMaybeSingle = jest.fn().mockResolvedValue({ data: mockSupabaseResponse, error: null });
+    // order() es encadenable por defecto (ej. .order().limit().single());
+    // los tests de findAll/findByPetId lo sobreescriben con mockResolvedValue
+    mockOrder = jest.fn<AsyncFn>().mockReturnThis();
 
-    // Mock de from con todos los métodos encadenables
     mockFrom = jest.fn().mockReturnValue({
       select: mockSelect,
       insert: mockInsert,
@@ -113,7 +120,7 @@ describe('SupabaseWeightRecordRepository', () => {
         Date: null, 
         Note: null 
       };
-      mockSingle.mockResolvedValueOnce({ data: responseWithNulls, error: null });
+      mockSingle.mockResolvedValue({ data: responseWithNulls, error: null });
 
       const result = await repository.save(minimalRecord);
 
@@ -130,7 +137,7 @@ describe('SupabaseWeightRecordRepository', () => {
 
     it('should throw error when save fails', async () => {
       const errorMessage = 'Database error';
-      mockSingle.mockResolvedValueOnce({ data: null, error: { message: errorMessage } });
+      mockSingle.mockResolvedValue({ data: null, error: { message: errorMessage } });
 
       await expect(repository.save(mockWeightRecordEntity)).rejects.toThrow(
         `Error guardando: ${errorMessage}`
@@ -139,20 +146,9 @@ describe('SupabaseWeightRecordRepository', () => {
   });
 
   describe('findAll', () => {
-    beforeEach(() => {
-      // Configurar el mock para que select devuelva una promesa con order
-      mockSelect.mockImplementation(() => {
-        return {
-          order: mockOrder,
-        };
-      });
-      mockOrder.mockImplementation(() => Promise.resolve({ 
-        data: [mockSupabaseResponse], 
-        error: null 
-      }));
-    });
-
     it('should return all weight records', async () => {
+      mockOrder.mockResolvedValue({ data: [mockSupabaseResponse], error: null });
+
       const result = await repository.findAll();
 
       expect(createClient).toHaveBeenCalled();
@@ -172,7 +168,7 @@ describe('SupabaseWeightRecordRepository', () => {
     });
 
     it('should return empty array when no records exist', async () => {
-      mockOrder.mockImplementationOnce(() => Promise.resolve({ data: [], error: null }));
+      mockOrder.mockResolvedValue({ data: [], error: null });
 
       const result = await repository.findAll();
 
@@ -186,7 +182,7 @@ describe('SupabaseWeightRecordRepository', () => {
         Date: null,
         Note: null,
       }];
-      mockOrder.mockImplementationOnce(() => Promise.resolve({ data: mockDataWithNulls, error: null }));
+      mockOrder.mockResolvedValue({ data: mockDataWithNulls, error: null });
 
       const result = await repository.findAll();
 
@@ -197,7 +193,7 @@ describe('SupabaseWeightRecordRepository', () => {
 
     it('should throw error when findAll fails', async () => {
       const errorMessage = 'Query error';
-      mockOrder.mockImplementationOnce(() => Promise.resolve({ data: null, error: { message: errorMessage } }));
+      mockOrder.mockResolvedValue({ data: null, error: { message: errorMessage } });
 
       await expect(repository.findAll()).rejects.toThrow(
         `Error obteniendo registros: ${errorMessage}`
@@ -206,30 +202,12 @@ describe('SupabaseWeightRecordRepository', () => {
   });
 
   describe('findByPetId', () => {
-    beforeEach(() => {
-      // Configurar el mock para select con los métodos encadenados
-      mockSelect.mockImplementation(() => {
-        return {
-          eq: mockEq,
-        };
-      });
-      mockEq.mockImplementation(() => {
-        return {
-          order: mockOrder,
-        };
-      });
-      mockOrder.mockImplementation(() => Promise.resolve({ 
-        data: [{ PetId: mockPetId, Weight: mockWeight }], 
-        error: null 
-      }));
-    });
-
     it('should find weight records by petId', async () => {
       const mockData = [
         { PetId: mockPetId, Weight: mockWeight },
         { PetId: mockPetId, Weight: 6.0 },
       ];
-      mockOrder.mockImplementationOnce(() => Promise.resolve({ data: mockData, error: null }));
+      mockOrder.mockResolvedValue({ data: mockData, error: null });
 
       const result = await repository.findByPetId(mockPetId);
 
@@ -251,7 +229,7 @@ describe('SupabaseWeightRecordRepository', () => {
     });
 
     it('should throw error when no records found for petId', async () => {
-      mockOrder.mockImplementationOnce(() => Promise.resolve({ data: [], error: null }));
+      mockOrder.mockResolvedValue({ data: [], error: null });
 
       await expect(repository.findByPetId(mockPetId)).rejects.toThrow(
         `No se encontraron registros para petId: ${mockPetId}`
@@ -260,7 +238,7 @@ describe('SupabaseWeightRecordRepository', () => {
 
     it('should handle null weight values', async () => {
       const mockData = [{ PetId: mockPetId, Weight: null }];
-      mockOrder.mockImplementationOnce(() => Promise.resolve({ data: mockData, error: null }));
+      mockOrder.mockResolvedValue({ data: mockData, error: null });
 
       const result = await repository.findByPetId(mockPetId);
 
@@ -269,7 +247,7 @@ describe('SupabaseWeightRecordRepository', () => {
 
     it('should throw error when query fails', async () => {
       const errorMessage = 'Database error';
-      mockOrder.mockImplementationOnce(() => Promise.resolve({ data: null, error: { message: errorMessage } }));
+      mockOrder.mockResolvedValue({ data: null, error: { message: errorMessage } });
 
       await expect(repository.findByPetId(mockPetId)).rejects.toThrow(
         `Error: ${errorMessage}`
@@ -278,37 +256,13 @@ describe('SupabaseWeightRecordRepository', () => {
   });
 
   describe('getLatestByPetId', () => {
-    beforeEach(() => {
-      // Configurar el mock para select con todos los métodos encadenados
-      mockSelect.mockImplementation(() => {
-        return {
-          eq: mockEq,
-        };
-      });
-      mockEq.mockImplementation(() => {
-        return {
-          order: mockOrder,
-        };
-      });
-      mockOrder.mockImplementation(() => {
-        return {
-          limit: mockLimit,
-        };
-      });
-      mockLimit.mockImplementation(() => {
-        return {
-          single: mockSingle,
-        };
-      });
-    });
-
     it('should return latest weight record by petId', async () => {
       const mockData = {
         PetId: mockPetId,
         Weight: mockWeight,
         Date: mockDate,
       };
-      mockSingle.mockResolvedValueOnce({ data: mockData, error: null });
+      mockSingle.mockResolvedValue({ data: mockData, error: null });
 
       const result = await repository.getLatestByPetId(mockPetId);
 
@@ -333,7 +287,7 @@ describe('SupabaseWeightRecordRepository', () => {
         Weight: null,
         Date: null,
       };
-      mockSingle.mockResolvedValueOnce({ data: mockData, error: null });
+      mockSingle.mockResolvedValue({ data: mockData, error: null });
 
       const result = await repository.getLatestByPetId(mockPetId);
 
@@ -343,7 +297,7 @@ describe('SupabaseWeightRecordRepository', () => {
 
     it('should throw error when no latest record found', async () => {
       const errorMessage = 'Not found';
-      mockSingle.mockResolvedValueOnce({ data: null, error: { message: errorMessage } });
+      mockSingle.mockResolvedValue({ data: null, error: { message: errorMessage } });
 
       await expect(repository.getLatestByPetId(mockPetId)).rejects.toThrow(
         `Error obteniendo último peso: ${errorMessage}`
@@ -356,33 +310,9 @@ describe('SupabaseWeightRecordRepository', () => {
       const newWeight = 6.8;
       const updatedData = { ...mockSupabaseResponse, Weight: newWeight };
       
-      // Mock para obtener el registro más reciente
-      // Primera llamada: select('id').eq('PetId', petId).order(...).limit(1).single()
-      mockSelect.mockImplementationOnce(() => ({
-        eq: mockEq,
-      }));
-      mockEq.mockImplementationOnce(() => ({
-        order: mockOrder,
-      }));
-      mockOrder.mockImplementationOnce(() => ({
-        limit: mockLimit,
-      }));
-      mockLimit.mockImplementationOnce(() => ({
-        single: mockSingle,
-      }));
-      mockSingle.mockResolvedValueOnce({ data: { id: mockRecordId }, error: null });
-
-      // Segunda llamada: update({ Weight }).eq('id', id).select().single()
-      mockUpdate.mockImplementationOnce(() => ({
-        eq: mockEq,
-      }));
-      mockEq.mockImplementationOnce(() => ({
-        select: mockSelect,
-      }));
-      mockSelect.mockImplementationOnce(() => ({
-        single: mockSingle,
-      }));
-      mockSingle.mockResolvedValueOnce({ data: updatedData, error: null });
+      mockSingle
+        .mockResolvedValueOnce({ data: { id: mockRecordId }, error: null })
+        .mockResolvedValueOnce({ data: updatedData, error: null });
 
       const result = await repository.updateWeightByPetId(mockPetId, newWeight);
 
@@ -403,19 +333,6 @@ describe('SupabaseWeightRecordRepository', () => {
     });
 
     it('should throw error when record to update is not found', async () => {
-      // Mock para obtener el registro más reciente - no encontrado
-      mockSelect.mockImplementationOnce(() => ({
-        eq: mockEq,
-      }));
-      mockEq.mockImplementationOnce(() => ({
-        order: mockOrder,
-      }));
-      mockOrder.mockImplementationOnce(() => ({
-        limit: mockLimit,
-      }));
-      mockLimit.mockImplementationOnce(() => ({
-        single: mockSingle,
-      }));
       mockSingle.mockResolvedValueOnce({ data: null, error: { message: 'Not found' } });
 
       await expect(repository.updateWeightByPetId(mockPetId, 7.0)).rejects.toThrow(
@@ -426,32 +343,9 @@ describe('SupabaseWeightRecordRepository', () => {
     it('should throw error when update fails', async () => {
       const errorMessage = 'Update failed';
       
-      // Mock para obtener el registro más reciente - éxito
-      mockSelect.mockImplementationOnce(() => ({
-        eq: mockEq,
-      }));
-      mockEq.mockImplementationOnce(() => ({
-        order: mockOrder,
-      }));
-      mockOrder.mockImplementationOnce(() => ({
-        limit: mockLimit,
-      }));
-      mockLimit.mockImplementationOnce(() => ({
-        single: mockSingle,
-      }));
-      mockSingle.mockResolvedValueOnce({ data: { id: mockRecordId }, error: null });
-
-      // Mock para actualizar - error
-      mockUpdate.mockImplementationOnce(() => ({
-        eq: mockEq,
-      }));
-      mockEq.mockImplementationOnce(() => ({
-        select: mockSelect,
-      }));
-      mockSelect.mockImplementationOnce(() => ({
-        single: mockSingle,
-      }));
-      mockSingle.mockResolvedValueOnce({ data: null, error: { message: errorMessage } });
+      mockSingle
+        .mockResolvedValueOnce({ data: { id: mockRecordId }, error: null })
+        .mockResolvedValueOnce({ data: null, error: { message: errorMessage } });
 
       await expect(repository.updateWeightByPetId(mockPetId, 7.0)).rejects.toThrow(
         `Error al actualizar peso: ${errorMessage}`
@@ -466,32 +360,9 @@ describe('SupabaseWeightRecordRepository', () => {
         Note: null,
       };
       
-      // Mock para obtener el registro más reciente
-      mockSelect.mockImplementationOnce(() => ({
-        eq: mockEq,
-      }));
-      mockEq.mockImplementationOnce(() => ({
-        order: mockOrder,
-      }));
-      mockOrder.mockImplementationOnce(() => ({
-        limit: mockLimit,
-      }));
-      mockLimit.mockImplementationOnce(() => ({
-        single: mockSingle,
-      }));
-      mockSingle.mockResolvedValueOnce({ data: { id: mockRecordId }, error: null });
-
-      // Mock para actualizar
-      mockUpdate.mockImplementationOnce(() => ({
-        eq: mockEq,
-      }));
-      mockEq.mockImplementationOnce(() => ({
-        select: mockSelect,
-      }));
-      mockSelect.mockImplementationOnce(() => ({
-        single: mockSingle,
-      }));
-      mockSingle.mockResolvedValueOnce({ data: updatedData, error: null });
+      mockSingle
+        .mockResolvedValueOnce({ data: { id: mockRecordId }, error: null })
+        .mockResolvedValueOnce({ data: updatedData, error: null });
 
       const result = await repository.updateWeightByPetId(mockPetId, 7.0);
 
@@ -503,32 +374,9 @@ describe('SupabaseWeightRecordRepository', () => {
       const newWeight = 5.75;
       const updatedData = { ...mockSupabaseResponse, Weight: newWeight };
       
-      // Mock para obtener el registro más reciente
-      mockSelect.mockImplementationOnce(() => ({
-        eq: mockEq,
-      }));
-      mockEq.mockImplementationOnce(() => ({
-        order: mockOrder,
-      }));
-      mockOrder.mockImplementationOnce(() => ({
-        limit: mockLimit,
-      }));
-      mockLimit.mockImplementationOnce(() => ({
-        single: mockSingle,
-      }));
-      mockSingle.mockResolvedValueOnce({ data: { id: mockRecordId }, error: null });
-
-      // Mock para actualizar
-      mockUpdate.mockImplementationOnce(() => ({
-        eq: mockEq,
-      }));
-      mockEq.mockImplementationOnce(() => ({
-        select: mockSelect,
-      }));
-      mockSelect.mockImplementationOnce(() => ({
-        single: mockSingle,
-      }));
-      mockSingle.mockResolvedValueOnce({ data: updatedData, error: null });
+      mockSingle
+        .mockResolvedValueOnce({ data: { id: mockRecordId }, error: null })
+        .mockResolvedValueOnce({ data: updatedData, error: null });
 
       const result = await repository.updateWeightByPetId(mockPetId, newWeight);
 
@@ -539,7 +387,7 @@ describe('SupabaseWeightRecordRepository', () => {
 
   describe('error handling integration', () => {
     it('should handle network errors gracefully', async () => {
-      mockSingle.mockRejectedValueOnce(new Error('Network error'));
+      mockSingle.mockRejectedValue(new Error('Network error'));
 
       await expect(repository.save(mockWeightRecordEntity)).rejects.toThrow('Network error');
     });
@@ -565,7 +413,7 @@ describe('SupabaseWeightRecordRepository', () => {
         Date: null,
         Note: null,
       };
-      mockSingle.mockResolvedValueOnce({ data: responseWithNulls, error: null });
+      mockSingle.mockResolvedValue({ data: responseWithNulls, error: null });
 
       const result = await repository.save(record);
 

@@ -23,6 +23,8 @@ describe('UpdateMedicationUseCase', () => {
   });
 
   const validId = '123e4567-e89b-12d3-a456-426614174000';
+  const validUserId = 'user-123';
+  const validPetId = 'pet-123';
   const validCreatedAt = new Date('2024-01-01');
   const validUpdatedAt = new Date('2024-01-01');
 
@@ -43,7 +45,7 @@ describe('UpdateMedicationUseCase', () => {
     // @ts-expect-error - Ignorar tipo para mock
     mockUpdate.mockResolvedValue(mockMedication);
 
-    await updateMedicationUseCase.execute(validId, { dosage: '750mg' });
+    await updateMedicationUseCase.execute(validId, { dosage: '750mg', userId: validUserId, petId: validPetId });
 
     expect(mockMedication.dosage.value).toBe('750mg');
     expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -55,7 +57,7 @@ describe('UpdateMedicationUseCase', () => {
     // @ts-expect-error - Ignorar tipo para mock
     mockUpdate.mockResolvedValue(mockMedication);
 
-    await updateMedicationUseCase.execute(validId, { frequency: 'Cada 8 horas' });
+    await updateMedicationUseCase.execute(validId, { frequency: 'Cada 8 horas', userId: validUserId, petId: validPetId });
 
     expect(mockMedication.frequency.value).toBe('Cada 8 horas');
     expect(mockUpdate).toHaveBeenCalledTimes(1);
@@ -67,9 +69,11 @@ describe('UpdateMedicationUseCase', () => {
     // @ts-expect-error - Ignorar tipo para mock
     mockUpdate.mockResolvedValue(mockMedication);
 
-    await updateMedicationUseCase.execute(validId, { 
-      dosage: '750mg', 
-      frequency: 'Cada 6 horas' 
+    await updateMedicationUseCase.execute(validId, {
+      dosage: '750mg',
+      frequency: 'Cada 6 horas',
+      userId: validUserId,
+      petId: validPetId,
     });
 
     expect(mockMedication.dosage.value).toBe('750mg');
@@ -81,7 +85,7 @@ describe('UpdateMedicationUseCase', () => {
     // @ts-expect-error - Ignorar tipo para mock
     mockFindById.mockResolvedValue(null);
 
-    await expect(updateMedicationUseCase.execute(validId, { dosage: '750mg' }))
+    await expect(updateMedicationUseCase.execute(validId, { dosage: '750mg', userId: validUserId, petId: validPetId }))
       .rejects
       .toThrow('Medicación no encontrada');
     expect(mockUpdate).not.toHaveBeenCalled();

@@ -1,5 +1,7 @@
 // src/__tests__/domain/value-objects/vaccine-name.vo.test.ts
 import { VaccineName } from '../../../domain/value-objects/vaccine-name.vo';
+import { describe, it, expect } from '@jest/globals';
+
 
 describe('VaccineName Value Object', () => {
   describe('create', () => {

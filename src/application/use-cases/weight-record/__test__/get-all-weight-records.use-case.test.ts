@@ -1,7 +1,8 @@
 // get-all-weight-records.use-case.test.ts
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { GetAllWeightRecordsUseCase } from '../get-all-weigh-records.use-case';
 import { weightRecordRepository } from '@/src/domain/repositories/weight-record.repository';
-import { weightRecordListResponseDto } from '@/src/application/dtos/weight-record.dto';
+import { WeightRecordListResponseDto } from '@/src/application/dtos/weight-record.dto';
 
 describe('GetAllWeightRecordsUseCase', () => {
   let useCase: GetAllWeightRecordsUseCase;
@@ -13,11 +14,15 @@ describe('GetAllWeightRecordsUseCase', () => {
   const mockPetId2 = '887fcdeb-51a2-43d7-9b56-2546b7a3c8e8';
   const mockCreatedAt1 = new Date('2026-07-29T10:00:00Z');
   const mockCreatedAt2 = new Date('2026-07-28T15:30:00Z');
+  const mockUserId = 'user-123';
+  const mockUnit = 'kg' as const;
 
-  const mockWeightRecords: weightRecordListResponseDto[] = [
+  const mockWeightRecords: WeightRecordListResponseDto[] = [
     {
       id: mockRecordId1,
       petId: mockPetId1,
+      userId: mockUserId,
+      unit: mockUnit,
       weight: 5.5,
       date: '2026-07-29',
       note: 'Peso después del baño',
@@ -26,6 +31,8 @@ describe('GetAllWeightRecordsUseCase', () => {
     {
       id: mockRecordId2,
       petId: mockPetId2,
+      userId: mockUserId,
+      unit: mockUnit,
       weight: 6.2,
       date: '2026-07-28',
       note: 'Peso antes de comer',
@@ -82,6 +89,8 @@ describe('GetAllWeightRecordsUseCase', () => {
         {
           id: mockRecordId1,
           petId: mockPetId1,
+          userId: mockUserId,
+          unit: mockUnit,
           weight: 5.5,
           date: '2026-07-29',
           note: 'Peso más reciente',
@@ -90,6 +99,8 @@ describe('GetAllWeightRecordsUseCase', () => {
         {
           id: mockRecordId2,
           petId: mockPetId2,
+          userId: mockUserId,
+          unit: mockUnit,
           weight: 6.2,
           date: '2026-07-28',
           note: 'Peso anterior',
@@ -109,16 +120,20 @@ describe('GetAllWeightRecordsUseCase', () => {
 
     it('should handle records with null optional fields', async () => {
       // Arrange
-      const recordsWithNulls: weightRecordListResponseDto[] = [
+      const recordsWithNulls: WeightRecordListResponseDto[] = [
         {
           id: mockRecordId1,
           petId: mockPetId1,
+          userId: mockUserId,
+          unit: mockUnit,
           weight: 5.5,
           createdAt: mockCreatedAt1.toISOString(),
         },
         {
           id: mockRecordId2,
           petId: mockPetId2,
+          userId: mockUserId,
+          unit: mockUnit,
           weight: 6.2,
           date: '2026-07-28',
           note: 'Solo nota',
@@ -139,10 +154,12 @@ describe('GetAllWeightRecordsUseCase', () => {
 
     it('should handle records with decimal weights', async () => {
       // Arrange
-      const recordsWithDecimals: weightRecordListResponseDto[] = [
+      const recordsWithDecimals: WeightRecordListResponseDto[] = [
         {
           id: mockRecordId1,
           petId: mockPetId1,
+          userId: mockUserId,
+          unit: mockUnit,
           weight: 5.75,
           date: '2026-07-29',
           note: 'Peso con decimales',
@@ -151,6 +168,8 @@ describe('GetAllWeightRecordsUseCase', () => {
         {
           id: mockRecordId2,
           petId: mockPetId2,
+          userId: mockUserId,
+          unit: mockUnit,
           weight: 6.33,
           date: '2026-07-28',
           note: 'Otro peso con decimales',
@@ -169,11 +188,13 @@ describe('GetAllWeightRecordsUseCase', () => {
 
     it('should handle large number of records', async () => {
       // Arrange
-      const largeRecordsList: weightRecordListResponseDto[] = Array.from(
+      const largeRecordsList: WeightRecordListResponseDto[] = Array.from(
         { length: 100 },
         (_, index) => ({
           id: `record-${index}`,
           petId: `pet-${index}`,
+          userId: mockUserId,
+          unit: mockUnit,
           weight: 5 + index * 0.1,
           date: `2026-07-${29 - index}`,
           note: `Nota ${index}`,
@@ -215,10 +236,12 @@ describe('GetAllWeightRecordsUseCase', () => {
         {
           id: mockRecordId1,
           petId: mockPetId1,
+          userId: mockUserId,
+          unit: mockUnit,
           // weight missing
           createdAt: mockCreatedAt1.toISOString(),
         },
-      ] as weightRecordListResponseDto[];
+      ] as WeightRecordListResponseDto[];
       mockRepository.findAll.mockResolvedValue(malformedData);
 
       // Act
@@ -230,10 +253,12 @@ describe('GetAllWeightRecordsUseCase', () => {
 
     it('should handle empty strings in fields', async () => {
       // Arrange
-      const recordsWithEmptyStrings: weightRecordListResponseDto[] = [
+      const recordsWithEmptyStrings: WeightRecordListResponseDto[] = [
         {
           id: mockRecordId1,
           petId: mockPetId1,
+          userId: mockUserId,
+          unit: mockUnit,
           weight: 5.5,
           date: '',
           note: '',
@@ -252,10 +277,12 @@ describe('GetAllWeightRecordsUseCase', () => {
 
     it('should handle very large weight values', async () => {
       // Arrange
-      const recordsWithLargeWeights: weightRecordListResponseDto[] = [
+      const recordsWithLargeWeights: WeightRecordListResponseDto[] = [
         {
           id: mockRecordId1,
           petId: mockPetId1,
+          userId: mockUserId,
+          unit: mockUnit,
           weight: 99999.99,
           date: '2026-07-29',
           note: 'Peso muy grande',
@@ -273,10 +300,12 @@ describe('GetAllWeightRecordsUseCase', () => {
 
     it('should handle very small positive weight values', async () => {
       // Arrange
-      const recordsWithSmallWeights: weightRecordListResponseDto[] = [
+      const recordsWithSmallWeights: WeightRecordListResponseDto[] = [
         {
           id: mockRecordId1,
           petId: mockPetId1,
+          userId: mockUserId,
+          unit: mockUnit,
           weight: 0.001,
           date: '2026-07-29',
           note: 'Peso muy pequeño',
@@ -375,9 +404,11 @@ describe('GetAllWeightRecordsUseCase', () => {
   describe('data integrity', () => {
     it('should preserve all fields from repository', async () => {
       // Arrange
-      const completeRecord: weightRecordListResponseDto = {
+      const completeRecord: WeightRecordListResponseDto = {
         id: mockRecordId1,
         petId: mockPetId1,
+        userId: mockUserId,
+        unit: mockUnit,
         weight: 5.5,
         date: '2026-07-29',
         note: 'Nota completa',
@@ -395,9 +426,11 @@ describe('GetAllWeightRecordsUseCase', () => {
 
     it('should maintain data types', async () => {
       // Arrange
-      const recordWithTypes: weightRecordListResponseDto = {
+      const recordWithTypes: WeightRecordListResponseDto = {
         id: '123e4567-e89b-12d3-a456-426614174000',
         petId: '987fcdeb-51a2-43d7-9b56-2546b7a3c8e9',
+        userId: mockUserId,
+        unit: mockUnit,
         weight: 5.5,
         date: '2026-07-29',
         note: 'Nota',
@@ -440,6 +473,8 @@ describe('GetAllWeightRecordsUseCase', () => {
       const manyRecords = Array.from({ length: 1000 }, (_, i) => ({
         id: `record-${i}`,
         petId: `pet-${i}`,
+        userId: mockUserId,
+        unit: mockUnit,
         weight: 5 + i * 0.1,
         date: `2026-07-${29 - (i % 30)}`,
         note: `Nota ${i}`,

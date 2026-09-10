@@ -1,5 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/src/infrastructure/database/supabase/client';
+import { createVisitsPublisher } from '@/src/infrastructure/pubsub/pubsub.factory';
+
+// ✅ Obtener instancia del publisher
+const visitsPublisher = createVisitsPublisher();
 
 export async function POST(request: NextRequest) {
   console.log("📝 POST /api/visits - Creando nueva visita");
@@ -29,10 +33,19 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // ✅ Validar userId (necesario para notificaciones)
+    if (!body.userId) {
+      return NextResponse.json(
+        { success: false, message: 'userId es requerido para notificaciones' },
+        { status: 400 }
+      );
+    }
     
     // Preparar datos para Supabase
+    const petId = body.petId || body.pet_id;
     const visitData = {
-      pet_id: body.petId || body.pet_id,
+      pet_id: petId,
       date: body.date || new Date().toISOString().split('T')[0],
       reason: body.reason,
       diagnosis: body.diagnosis || null,
@@ -59,6 +72,22 @@ export async function POST(request: NextRequest) {
     }
     
     console.log("✅ Visita creada:", data.id);
+
+    // ✅ PUBLICAR EN PUB/SUB - Visita programada
+    console.log("📤 Publicando evento VISIT_SCHEDULED...");
+    try {
+      await visitsPublisher.publishVisitScheduled({
+        visitId: data.id,
+        petId: petId,
+        userId: body.userId,
+        scheduledDate: data.date,
+        reason: data.reason,
+        veterinarian: data.veterinarian,
+      });
+      console.log("✅ Evento VISIT_SCHEDULED publicado correctamente");
+    } catch (pubsubError) {
+      console.error("❌ Error publicando en Pub/Sub:", pubsubError);
+    }
     
     return NextResponse.json({
       success: true,

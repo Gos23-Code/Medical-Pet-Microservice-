@@ -1,6 +1,8 @@
 export interface UpdateMedicationDTO {
   dosage?: string;
   frequency?: string;
+  userId: string;
+  petId: string;
 }
 
 export interface MedicationResponseDTO {

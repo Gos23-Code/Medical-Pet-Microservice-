@@ -1,6 +1,8 @@
 // __tests__/infrastructure/repositories/supabase-lab-test.repository.test.ts
 import { SupabaseLabTestRepository } from '@/src/infrastructure/database/repositories/supabase-lab-test.repository';
 import { LabTest } from '@/src/domain/entities/lab-test.entity';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+
 
 // Mock del cliente Supabase
 jest.mock('@/src/infrastructure/database/supabase/client', () => ({
@@ -9,17 +11,22 @@ jest.mock('@/src/infrastructure/database/supabase/client', () => ({
 
 import { createClient } from '@/src/infrastructure/database/supabase/client';
 
-// Definir tipos para el mock de Supabase
+// Definir tipos para el mock de Supabase.
+// Los métodos son encadenables (mockReturnThis) y además pueden resolver una
+// promesa; declarar el retorno como Promise evita que mockResolvedValue reciba `never`.
+type SupabaseQueryFn = (...args: unknown[]) => Promise<{ data: unknown; error: unknown }>;
+type QueryMock = jest.Mock<SupabaseQueryFn>;
+
 interface MockSupabaseQuery {
-  from: jest.Mock;
-  insert: jest.Mock;
-  select: jest.Mock;
-  update: jest.Mock;
-  eq: jest.Mock;
-  order: jest.Mock;
-  limit: jest.Mock;
-  single: jest.Mock;
-  [key: string]: jest.Mock;
+  from: QueryMock;
+  insert: QueryMock;
+  select: QueryMock;
+  update: QueryMock;
+  eq: QueryMock;
+  order: QueryMock;
+  limit: QueryMock;
+  single: QueryMock;
+  [key: string]: QueryMock;
 }
 
 describe('SupabaseLabTestRepository', () => {
@@ -53,14 +60,14 @@ describe('SupabaseLabTestRepository', () => {
   });
 
   beforeEach(() => {
-    const fromMock = jest.fn().mockReturnThis();
-    const insertMock = jest.fn().mockReturnThis();
-    const selectMock = jest.fn().mockReturnThis();
-    const updateMock = jest.fn().mockReturnThis();
-    const eqMock = jest.fn().mockReturnThis();
-    const orderMock = jest.fn().mockReturnThis();
-    const limitMock = jest.fn().mockReturnThis();
-    const singleMock = jest.fn().mockReturnThis();
+    const fromMock = jest.fn<SupabaseQueryFn>().mockReturnThis();
+    const insertMock = jest.fn<SupabaseQueryFn>().mockReturnThis();
+    const selectMock = jest.fn<SupabaseQueryFn>().mockReturnThis();
+    const updateMock = jest.fn<SupabaseQueryFn>().mockReturnThis();
+    const eqMock = jest.fn<SupabaseQueryFn>().mockReturnThis();
+    const orderMock = jest.fn<SupabaseQueryFn>().mockReturnThis();
+    const limitMock = jest.fn<SupabaseQueryFn>().mockReturnThis();
+    const singleMock = jest.fn<SupabaseQueryFn>().mockReturnThis();
 
     mockSupabase = {
       from: fromMock,

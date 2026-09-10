@@ -1,4 +1,5 @@
 // src/__tests__/application/add-surgery.use-case.test.ts
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { AddSurgeryUseCase, AddSurgeryCommand } from '@/src/application/use-cases/surgery/add-surgery.use-case';
 import { PetSurgeryRepository } from '@/src/domain/repositories/pet-surgery.repository';
 import { PetSurgery } from '@/src/domain/entities/pet-surgery.entity';
@@ -81,6 +82,34 @@ describe('AddSurgeryUseCase', () => {
       expect(result.postOpInstructions).toBeUndefined();
       expect(mockRepository.save).toHaveBeenCalledWith(result);
     });
+
+    // ✅ Nueva prueba: permitir fechas pasadas
+    it('debe permitir registrar cirugías con fechas pasadas (históricas)', async () => {
+      const pastDate = new Date('2020-01-01');
+      const historicalCommand: AddSurgeryCommand = {
+        ...validCommand,
+        surgeryDate: pastDate
+      };
+
+      const result = await useCase.execute(historicalCommand);
+
+      expect(result.surgeryDate).toEqual(pastDate);
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
+
+    // ✅ Nueva prueba: permitir fecha actual
+    it('debe permitir registrar cirugías con fecha actual', async () => {
+      const today = new Date();
+      const todayCommand: AddSurgeryCommand = {
+        ...validCommand,
+        surgeryDate: today
+      };
+
+      const result = await useCase.execute(todayCommand);
+
+      expect(result.surgeryDate).toEqual(today);
+      expect(mockRepository.save).toHaveBeenCalled();
+    });
   });
 
   describe('execute - validaciones de campos requeridos', () => {
@@ -148,38 +177,6 @@ describe('AddSurgeryUseCase', () => {
       const result = await useCase.execute(validCommandMax);
       
       expect(result.durationMinutes).toBe(480);
-      expect(mockRepository.save).toHaveBeenCalled();
-    });
-  });
-
-  describe('execute - validaciones de fecha', () => {
-    it('debe fallar si la fecha es pasada', async () => {
-      const pastDate = new Date('2020-01-01');
-      const invalidCommand = { ...validCommand, surgeryDate: pastDate };
-      
-      await expect(useCase.execute(invalidCommand)).rejects.toThrow('Surgery date cannot be in the past');
-      expect(mockRepository.save).not.toHaveBeenCalled();
-    });
-
-    it('debe aceptar fecha futura', async () => {
-      const futureDate = getFutureDate();
-      const validCommandFuture = { ...validCommand, surgeryDate: futureDate };
-      
-      const result = await useCase.execute(validCommandFuture);
-      
-      expect(result.surgeryDate).toEqual(futureDate);
-      expect(mockRepository.save).toHaveBeenCalled();
-    });
-
-    it('debe aceptar fecha de mañana', async () => {
-      const tomorrow = new Date();
-      tomorrow.setDate(tomorrow.getDate() + 1);
-      tomorrow.setHours(0, 0, 0, 0);
-      const validCommandTomorrow = { ...validCommand, surgeryDate: tomorrow };
-      
-      const result = await useCase.execute(validCommandTomorrow);
-      
-      expect(result.surgeryDate).toEqual(tomorrow);
       expect(mockRepository.save).toHaveBeenCalled();
     });
   });

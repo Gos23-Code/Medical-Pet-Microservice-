@@ -3,8 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { VaccineRepository } from '@/src/infrastructure/database/repositories/supabase-vaccine.repository';
 import { UpdateVaccineUseCase } from '@/src/application/use-cases/vaccine/update-vaccine.use-case';
 import { VaccineMapper } from '@/src/application/mappers/vaccine.mapper';
+import { createVaccinePublisher } from '@/src/infrastructure/pubsub/pubsub.factory';
 
 const vaccineRepository = new VaccineRepository();
+const vaccinePublisher = createVaccinePublisher();
 
 // PUT /api/vaccines/{id} - Actualizar vacuna
 export async function PUT(
@@ -12,7 +14,6 @@ export async function PUT(
   context: { params: Promise<{ id: string }> }
 ) {
   try {
-    // ✅ CORRECTO: Usar await porque params es una Promise
     const params = await context.params;
     const id = params.id;
     
@@ -27,10 +28,25 @@ export async function PUT(
 
     const body = await request.json();
     
-    const updateVaccineUseCase = new UpdateVaccineUseCase(vaccineRepository);
+    console.log('📥 Body recibido:', body);
+
+    // ✅ Validar userId
+    if (!body.userId) {
+      return NextResponse.json(
+        { error: 'userId es requerido para notificaciones' },
+        { status: 400 }
+      );
+    }
+    
+    const updateVaccineUseCase = new UpdateVaccineUseCase(
+      vaccineRepository,
+      vaccinePublisher
+    );
     
     const vaccine = await updateVaccineUseCase.execute({
       id: id,
+      userId: body.userId,
+      petId: body.petId,  // ✅ PASAR petId
       name: body.name,
       lotNumber: body.lotNumber,
       applicationDate: body.applicationDate ? new Date(body.applicationDate) : undefined,
@@ -38,10 +54,12 @@ export async function PUT(
         ? (body.nextDoseDate ? new Date(body.nextDoseDate) : null) 
         : undefined,
       veterinarian: body.veterinarian,
-      notes: body.notes
+      notes: body.notes,
+      status: body.status
     });
 
-    const responseDTO = VaccineMapper.toDTO(vaccine);
+    // ✅ Pasar userId al mapper
+    const responseDTO = VaccineMapper.toDTO(vaccine, body.userId);
     return NextResponse.json(responseDTO);
     
   } catch (error) {

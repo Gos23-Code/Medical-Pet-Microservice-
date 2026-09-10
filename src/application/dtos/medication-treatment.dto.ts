@@ -1,4 +1,6 @@
 export interface AddMedicationDTO {
+  userId: string;  
+  petId: string;   
   name: string;
   dosage: string;
   frequency: string;

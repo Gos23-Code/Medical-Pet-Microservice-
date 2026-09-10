@@ -2,6 +2,8 @@
 import { CheckLabTestIsNormalUseCase } from '@/src/application/use-cases/lab-test/check-lab-test.use-case';
 import { LabTestRepository } from '@/src/domain/repositories/lab-test.repository';
 import { labTestListResponseDto } from '@/src/application/dtos/lab-test.dto';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+
 
 describe('CheckLabTestIsNormalUseCase', () => {
   let useCase: CheckLabTestIsNormalUseCase;
@@ -10,6 +12,8 @@ describe('CheckLabTestIsNormalUseCase', () => {
   const mockLabTests: labTestListResponseDto[] = [
     {
       id: '1',
+      user_id: 'usr-123',
+      pet_id: 'pet-789',
       visit_id: 'vis-456',
       name: 'Glucosa',
       result: '95',
@@ -18,6 +22,8 @@ describe('CheckLabTestIsNormalUseCase', () => {
     },
     {
       id: '2',
+      user_id: 'usr-123',
+      pet_id: 'pet-789',
       visit_id: 'vis-456',
       name: 'Colesterol',
       result: '180',
@@ -26,6 +32,8 @@ describe('CheckLabTestIsNormalUseCase', () => {
     },
     {
       id: '3',
+      user_id: 'usr-123',
+      pet_id: 'pet-789',
       visit_id: 'vis-456',
       name: 'Hierro',
       result: '15',

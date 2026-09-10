@@ -21,6 +21,9 @@ export interface VisitResponseDTO {
   reason: string;
   diagnosis?: string;
   veterinarian: string;
+  status: 'SCHEDULED' | 'CONFIRMED' | 'COMPLETED' | 'CANCELLED' | 'OVERDUE';
+  reminderCount: number;
+  lastReminderSentAt: string | null;
   notes?: string;
   weight?: number;
   temperature?: number;

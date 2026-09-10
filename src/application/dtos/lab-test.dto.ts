@@ -22,6 +22,8 @@ export interface LabTestResponseDto {
 //Get
 export interface labTestListResponseDto{
   id: string;
+  user_id: string;   
+  pet_id: string; 
   visit_id: string;
   name: string;
   result?: string;

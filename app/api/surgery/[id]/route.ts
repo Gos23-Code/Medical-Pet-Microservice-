@@ -4,11 +4,15 @@ import { SupabasePetSurgeryRepository } from '@/src/infrastructure/database/repo
 import { GetSurgeriesUseCase } from '@/src/application/use-cases/surgery/get-surgery.use-case';
 import { UpdateSurgeryUseCase } from '@/src/application/use-cases/surgery/update-surgery.use-case';
 import { DeleteSurgeryUseCase } from '@/src/application/use-cases/surgery/delete-surgery.use-case';
+import { createSurgeryPublisher } from '@/src/infrastructure/pubsub/pubsub.factory';
 
 const repository = new SupabasePetSurgeryRepository();
 const getSurgeriesUseCase = new GetSurgeriesUseCase(repository);
 const updateSurgeryUseCase = new UpdateSurgeryUseCase(repository);
 const deleteSurgeryUseCase = new DeleteSurgeryUseCase(repository);
+
+// ✅ Obtener instancia del publisher
+const surgeryPublisher = createSurgeryPublisher();
 
 // GET /api/pet-surgery/[id]
 export async function GET(
@@ -16,7 +20,6 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> | { id: string } }
 ) {
   try {
-    // En Next.js 15, params es una Promise que debe ser resuelta
     const resolvedParams = await params;
     const id = resolvedParams.id;
     
@@ -63,6 +66,23 @@ export async function PUT(
     }
     
     const body = await request.json();
+
+    // ✅ Validar userId (necesario para notificaciones)
+    if (!body.userId) {
+      return NextResponse.json(
+        { error: 'userId es requerido para notificaciones' },
+        { status: 400 }
+      );
+    }
+    
+    // 1. Obtener la cirugía actual para saber petId
+    const currentSurgery = await getSurgeriesUseCase.getById(id);
+    if (!currentSurgery) {
+      return NextResponse.json(
+        { error: 'Surgery not found' },
+        { status: 404 }
+      );
+    }
     
     const surgery = await updateSurgeryUseCase.execute({
       id: id,
@@ -77,6 +97,24 @@ export async function PUT(
       status: body.status,
       nextCheckupDate: body.nextCheckupDate ? new Date(body.nextCheckupDate) : undefined,
     });
+    
+    // 2. ✅ PUBLICAR EN PUB/SUB - Si el estado cambió a 'completed'
+    if (body.status?.toLowerCase() === 'completed') {
+      console.log('📤 Publicando evento SURGERY_COMPLETED...');
+      try {
+        await surgeryPublisher.publishSurgeryCompleted({
+          surgeryId: id,
+          petId: currentSurgery.petId,
+          userId: body.userId,
+          outcome: body.outcome || 'completed successfully',
+          notes: body.postOpInstructions || body.description || '',
+          completedAt: new Date().toISOString(),
+        });
+        console.log('✅ Evento SURGERY_COMPLETED publicado correctamente');
+      } catch (pubsubError) {
+        console.error('❌ Error publicando en Pub/Sub:', pubsubError);
+      }
+    }
     
     return NextResponse.json({ 
       success: true, 
@@ -112,20 +150,55 @@ export async function PATCH(
       );
     }
     
-    const { status, outcome } = await request.json();
+    const body = await request.json();
+
+    // ✅ Validar userId (necesario para notificaciones)
+    if (!body.userId) {
+      return NextResponse.json(
+        { error: 'userId es requerido para notificaciones' },
+        { status: 400 }
+      );
+    }
     
-    if (!status) {
+    if (!body.status) {
       return NextResponse.json(
         { error: 'Status is required' },
         { status: 400 }
       );
     }
     
+    // 1. Obtener la cirugía actual para saber petId
+    const currentSurgery = await getSurgeriesUseCase.getById(id);
+    if (!currentSurgery) {
+      return NextResponse.json(
+        { error: 'Surgery not found' },
+        { status: 404 }
+      );
+    }
+    
     const surgery = await updateSurgeryUseCase.updateStatus({
       id: id,
-      status,
-      outcome
+      status: body.status,
+      outcome: body.outcome
     });
+    
+    // 2. ✅ PUBLICAR EN PUB/SUB - Si el estado cambió a 'completed'
+    if (body.status === 'completed') {
+      console.log('📤 Publicando evento SURGERY_COMPLETED...');
+      try {
+        await surgeryPublisher.publishSurgeryCompleted({
+          surgeryId: id,
+          petId: currentSurgery.petId,
+          userId: body.userId,
+          outcome: body.outcome || 'completed successfully',
+          notes: currentSurgery.description || '',
+          completedAt: new Date().toISOString(),
+        });
+        console.log('✅ Evento SURGERY_COMPLETED publicado correctamente');
+      } catch (pubsubError) {
+        console.error('❌ Error publicando en Pub/Sub:', pubsubError);
+      }
+    }
     
     return NextResponse.json({ 
       success: true, 

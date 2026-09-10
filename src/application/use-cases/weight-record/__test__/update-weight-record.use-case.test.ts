@@ -1,24 +1,31 @@
 import { UpdateWeightRecordUseCase } from '@/src/application/use-cases/weight-record/update-weight-record.use-case';
 import { weightRecordRepository } from '@/src/domain/repositories/weight-record.repository';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
-const mockRepository: weightRecordRepository = {
+const mockUserId = 'user-123';
+
+const mockUpdatedRecord = {
+  message: 'Peso actualizado',
+  id: '278f0019-4024-49be-9219-8e1691b64fdc',
+  petId: 'uuid-1',
+  weight: 5.1,
+  createdAt: new Date().toISOString(),
+};
+
+const mockRepository: jest.Mocked<weightRecordRepository> = {
   save: jest.fn(),
   findAll: jest.fn(),
   findByPetId: jest.fn(),
   getLatestByPetId: jest.fn(),
-  updateWeightByPetId: jest.fn().mockResolvedValue({
-    message: 'Peso actualizado',
-    id: '278f0019-4024-49be-9219-8e1691b64fdc',
-    petId: 'uuid-1',
-    weight: 5.1,
-    createdAt: new Date().toISOString(),
-  }),
+  updateWeightByPetId: jest.fn(),
 };
+mockRepository.updateWeightByPetId.mockResolvedValue(mockUpdatedRecord);
 
 describe('UpdateWeightRecordUseCase', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRepository.updateWeightByPetId.mockResolvedValue(mockUpdatedRecord);
   });
 
   // Actualiza
@@ -27,7 +34,7 @@ describe('UpdateWeightRecordUseCase', () => {
 
     const result = await useCase.execute(
       'uuid-1',
-      { weight: 5.1 }
+      { userId: mockUserId, weight: 5.1 }
     );
 
     expect(result.message).toBe('Peso actualizado');
@@ -40,7 +47,7 @@ describe('UpdateWeightRecordUseCase', () => {
 
     await useCase.execute(
       'uuid-1',
-      { weight: 5.1 }
+      { userId: mockUserId, weight: 5.1 }
     );
 
     expect(mockRepository.updateWeightByPetId).toHaveBeenCalledWith(
@@ -55,7 +62,7 @@ describe('UpdateWeightRecordUseCase', () => {
 
     await useCase.execute(
       'uuid-1',
-      { weight: 5.1 }
+      { userId: mockUserId, weight: 5.1 }
     );
 
     expect(mockRepository.updateWeightByPetId).toHaveBeenCalledTimes(1);
@@ -66,7 +73,7 @@ describe('UpdateWeightRecordUseCase', () => {
     const useCase = new UpdateWeightRecordUseCase(mockRepository);
 
     await expect(
-      useCase.execute('uuid-1', { weight: 0 })
+      useCase.execute('uuid-1', { userId: mockUserId, weight: 0 })
     ).rejects.toThrow('El peso debe ser mayor a 0');
   });
 
@@ -75,26 +82,27 @@ describe('UpdateWeightRecordUseCase', () => {
     const useCase = new UpdateWeightRecordUseCase(mockRepository);
 
     await expect(
-      useCase.execute('uuid-1', { weight: -1 })
+      useCase.execute('uuid-1', { userId: mockUserId, weight: -1 })
     ).rejects.toThrow('El peso debe ser mayor a 0');
   });
 
   //lanza error si el repositorio falla
   it('Debe lanzar error si el repositorio falla', async () => {
-    const failRepository: weightRecordRepository = {
+    const failRepository: jest.Mocked<weightRecordRepository> = {
       save: jest.fn(),
       findAll: jest.fn(),
       findByPetId: jest.fn(),
       getLatestByPetId: jest.fn(),
-      updateWeightByPetId: jest.fn().mockRejectedValue(
-        new Error('No se encontró ningún WeightRecord con petId')
-      ),
+      updateWeightByPetId: jest.fn(),
     };
+    failRepository.updateWeightByPetId.mockRejectedValue(
+      new Error('No se encontró ningún WeightRecord con petId')
+    );
 
     const useCase = new UpdateWeightRecordUseCase(failRepository);
 
     await expect(
-      useCase.execute('uuid-1', { weight: 5.1 })
+      useCase.execute('uuid-1', { userId: mockUserId, weight: 5.1 })
     ).rejects.toThrow('No se encontró ningún WeightRecord con petId');
   });
 

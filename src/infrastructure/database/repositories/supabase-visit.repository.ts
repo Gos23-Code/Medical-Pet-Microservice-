@@ -1,5 +1,5 @@
 import { createClient } from '@/src/infrastructure/database/supabase/client';
-import { VeterinaryVisit } from '@/src/domain/entities/veterinary-visit.entity';
+import { VeterinaryVisit, VisitStatus } from '@/src/domain/entities/veterinary-visit.entity';
 import { VeterinaryVisitRepository } from '@/src/domain/repositories/veterinary-visit.repository';
 import { Weight } from '@/src/domain/value-objects/weight.vo';
 import { Temperature } from '@/src/domain/value-objects/temperature.vo';
@@ -16,6 +16,9 @@ interface SupabaseVisitRecord {
   temperature: number | null;
   created_at: string;
   updated_at: string;
+  status: string;
+  reminder_count: number;
+  last_reminder_sent_at: string | null;
 }
 
 interface SupabaseInsertRecord {
@@ -30,6 +33,9 @@ interface SupabaseInsertRecord {
   temperature: number | null;
   created_at: string;
   updated_at: string;
+  status: string;
+  reminder_count: number;
+  last_reminder_sent_at: string | null;
 }
 
 export class SupabaseVisitRepository implements VeterinaryVisitRepository {
@@ -52,6 +58,9 @@ export class SupabaseVisitRepository implements VeterinaryVisitRepository {
         : undefined,
       createdAt: new Date(record.created_at),
       updatedAt: new Date(record.updated_at),
+      status: record.status as VisitStatus || 'SCHEDULED',
+      reminderCount: record.reminder_count || 0,
+      lastReminderSentAt: record.last_reminder_sent_at ? new Date(record.last_reminder_sent_at) : null,
     });
   }
 
@@ -68,6 +77,9 @@ export class SupabaseVisitRepository implements VeterinaryVisitRepository {
       temperature: visit.temperature?.value !== undefined ? visit.temperature.value : null,
       created_at: visit.createdAt.toISOString(),
       updated_at: visit.updatedAt.toISOString(),
+      status: visit.status || 'SCHEDULED',
+      reminder_count: visit.reminderCount || 0,
+      last_reminder_sent_at: visit.lastReminderSentAt?.toISOString() || null,
     };
   }
 
@@ -122,6 +134,9 @@ export class SupabaseVisitRepository implements VeterinaryVisitRepository {
       .update({
         diagnosis: visit.diagnosis || null,
         notes: visit.notes || null,
+        status: visit.status,
+        reminder_count: visit.reminderCount,
+        last_reminder_sent_at: visit.lastReminderSentAt?.toISOString() || null,
         updated_at: new Date().toISOString(),
       })
       .eq('id', visit.id)
@@ -130,5 +145,128 @@ export class SupabaseVisitRepository implements VeterinaryVisitRepository {
 
     if (error) throw new Error(`Error al actualizar: ${error.message}`);
     return this.toDomain(data as SupabaseVisitRecord);
+  }
+
+  // ✅ NUEVO: Obtener visitas pendientes por mascota
+  async getPendingVisitsByPet(petId: string): Promise<VeterinaryVisit[]> {
+    const { data, error } = await this.supabase
+      .from('veterinary_visits')
+      .select('*')
+      .eq('pet_id', petId)
+      .in('status', ['SCHEDULED', 'OVERDUE'])
+      .lt('reminder_count', 3)
+      .order('date', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching pending visits:', error);
+      return [];
+    }
+
+    return (data || []).map(record => this.toDomain(record as SupabaseVisitRecord));
+  }
+
+  // ✅ NUEVO: Incrementar contador de recordatorios
+  async incrementReminderCount(id: string): Promise<void> {
+    const { data, error: fetchError } = await this.supabase
+      .from('veterinary_visits')
+      .select('reminder_count')
+      .eq('id', id)
+      .single();
+
+    if (fetchError) {
+      console.error(`Error fetching reminder count for visit ${id}:`, fetchError);
+      throw new Error(`Error fetching reminder count: ${fetchError.message}`);
+    }
+
+    if (!data) {
+      throw new Error(`Visit with id ${id} not found`);
+    }
+
+    const newCount = (data.reminder_count || 0) + 1;
+    
+    const { error: updateError } = await this.supabase
+      .from('veterinary_visits')
+      .update({
+        reminder_count: newCount,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (updateError) {
+      console.error(`Error updating reminder count for visit ${id}:`, updateError);
+      throw new Error(`Error updating reminder count: ${updateError.message}`);
+    }
+  }
+
+  // ✅ NUEVO: Actualizar fecha del último recordatorio
+  async updateLastReminderSent(id: string, date: Date): Promise<void> {
+    const { error } = await this.supabase
+      .from('veterinary_visits')
+      .update({
+        last_reminder_sent_at: date.toISOString(),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error(`Error updating last reminder sent for visit ${id}:`, error);
+      throw new Error(`Error updating last reminder sent: ${error.message}`);
+    }
+  }
+
+  // ✅ NUEVO: Marcar como retrasada (OVERDUE)
+  async markAsOverdue(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('veterinary_visits')
+      .update({
+        status: 'OVERDUE',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error(`Error marking visit ${id} as overdue:`, error);
+      throw new Error(`Error marking visit as overdue: ${error.message}`);
+    }
+  }
+
+  // ✅ NUEVO: Marcar como confirmada
+  async markAsConfirmed(id: string): Promise<void> {
+    const { error } = await this.supabase
+      .from('veterinary_visits')
+      .update({
+        status: 'CONFIRMED',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id);
+
+    if (error) {
+      console.error(`Error marking visit ${id} as confirmed:`, error);
+      throw new Error(`Error marking visit as confirmed: ${error.message}`);
+    }
+  }
+
+  // ✅ NUEVO: Marcar TODAS las visitas SCHEDULED con fecha PASADA como OVERDUE
+  async markScheduledAsOverdue(petId: string): Promise<void> {
+    const today = new Date().toISOString().split('T')[0];
+    
+    console.log(`🔄 Marcando visitas SCHEDULED con fecha < ${today} como OVERDUE...`);
+
+    const { error } = await this.supabase
+      .from('veterinary_visits')
+      .update({
+        status: 'OVERDUE',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('pet_id', petId)
+      .eq('status', 'SCHEDULED')
+      .lt('date', today);
+
+    if (error) {
+      console.error('Error marking scheduled visits as overdue:', error);
+      throw new Error(`Error marking scheduled visits as overdue: ${error.message}`);
+    }
+    
+    console.log(`✅ Visitas SCHEDULED con fecha anterior a hoy actualizadas a OVERDUE`);
   }
 }

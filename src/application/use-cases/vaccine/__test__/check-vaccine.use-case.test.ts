@@ -1,4 +1,5 @@
 // src/__tests__/domain/use-cases/check-vaccine-due.use-case.test.ts
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { CheckVaccineDueUseCase } from '@/src/application/use-cases/vaccine/check-vaccine.use-case';
 import { IVaccineRepository } from '@/src/domain/repositories/vaccine.repositories';
 import { Vaccine } from '@/src/domain/entities/vaccine.entity';
@@ -13,8 +14,16 @@ describe('CheckVaccineDueUseCase', () => {
       getByPetId: jest.fn(),
       updateVaccine: jest.fn(),
       deleteVaccine: jest.fn(),
-      getById: jest.fn()
-    };
+      getById: jest.fn(),
+      getPendingVaccines: jest.fn(),
+      incrementReminderCount: jest.fn(),
+      updateLastReminderSent: jest.fn(),
+      markAsOverdue: jest.fn(),
+      markAsApplied: jest.fn(),
+      getVaccinesDueToday: jest.fn(),
+      getOverdueVaccines: jest.fn(),
+    } as jest.Mocked<IVaccineRepository>;
+    
     useCase = new CheckVaccineDueUseCase(mockRepository);
   });
 
@@ -25,6 +34,7 @@ describe('CheckVaccineDueUseCase', () => {
     const vaccine = Vaccine.create(
       'uuid-123',
       'pet-123',
+      'user-123',  // ✅ AGREGAR userId
       'Rabia',
       'LOT-2024-001',
       new Date('2024-01-15'),
@@ -50,6 +60,7 @@ describe('CheckVaccineDueUseCase', () => {
     const vaccine = Vaccine.create(
       'uuid-123',
       'pet-123',
+      'user-123',  // ✅ AGREGAR userId
       'Rabia',
       'LOT-2024-001',
       new Date('2024-01-15'),
@@ -72,6 +83,7 @@ describe('CheckVaccineDueUseCase', () => {
     const vaccine = Vaccine.create(
       'uuid-123',
       'pet-123',
+      'user-123',  // ✅ AGREGAR userId
       'Rabia',
       'LOT-2024-001',
       new Date('2024-01-15'),
@@ -107,6 +119,7 @@ describe('CheckVaccineDueUseCase', () => {
     const vaccine = Vaccine.create(
       'uuid-123',
       'pet-123',
+      'user-123',  // ✅ AGREGAR userId
       'Rabia',
       'LOT-2024-001',
       new Date('2024-01-15'),

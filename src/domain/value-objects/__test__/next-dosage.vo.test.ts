@@ -1,5 +1,6 @@
 // src/__tests__/domain/value-objects/next-dosage.vo.test.ts
 import { NextDoseDate } from '../../value-objects/next-dosage.vo';
+import { describe, it, expect } from '@jest/globals';
 
 describe('NextDoseDate Value Object', () => {
   // ✅ Fechas relativas al momento actual

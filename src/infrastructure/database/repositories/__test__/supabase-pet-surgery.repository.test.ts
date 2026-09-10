@@ -1,6 +1,8 @@
 // src/__tests__/infrastructure/supabase-pet-surgery.repository.test.ts
 import { SupabasePetSurgeryRepository } from '@/src/infrastructure/database/repositories/supabase-pet-surgery.repository';
 import { PetSurgery } from '@/src/domain/entities/pet-surgery.entity';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+
 
 // Mock del cliente de supabase
 jest.mock('@/src/infrastructure/database/supabase/client-surgery', () => ({
@@ -19,6 +21,10 @@ jest.mock('@/src/infrastructure/database/supabase/client-surgery', () => ({
 }));
 
 import { supabase } from '@/src/infrastructure/database/supabase/client-surgery';
+
+// Helper para mocks async tipados. Sin genéricos, jest.fn() infiere el retorno
+// como `unknown` y mockResolvedValue pasa a esperar un argumento `never`.
+const resolved = <T>(value: T) => jest.fn<() => Promise<T>>().mockResolvedValue(value);
 
 describe('SupabasePetSurgeryRepository', () => {
   let repository: SupabasePetSurgeryRepository;
@@ -40,7 +46,7 @@ describe('SupabasePetSurgeryRepository', () => {
         status: 'SCHEDULED',
       });
       
-      const mockInsert = jest.fn().mockResolvedValue({ error: null });
+      const mockInsert = resolved({ error: null });
       (supabase.from as jest.Mock).mockReturnValue({
         insert: mockInsert,
       });
@@ -61,7 +67,7 @@ describe('SupabasePetSurgeryRepository', () => {
         status: 'SCHEDULED',
       });
       
-      const mockInsert = jest.fn().mockResolvedValue({ error: new Error('DB Error') });
+      const mockInsert = resolved({ error: new Error('DB Error') });
       (supabase.from as jest.Mock).mockReturnValue({
         insert: mockInsert,
       });
@@ -85,7 +91,7 @@ describe('SupabasePetSurgeryRepository', () => {
     };
 
     it('debe encontrar una cirugía por ID', async () => {
-      const mockSingle = jest.fn().mockResolvedValue({ data: mockData, error: null });
+      const mockSingle = resolved({ data: mockData, error: null });
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -100,7 +106,7 @@ describe('SupabasePetSurgeryRepository', () => {
     });
 
     it('debe retornar null si no encuentra', async () => {
-      const mockSingle = jest.fn().mockResolvedValue({ data: null, error: { code: 'PGRST116' } });
+      const mockSingle = resolved({ data: null, error: { code: 'PGRST116' } });
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -113,7 +119,7 @@ describe('SupabasePetSurgeryRepository', () => {
     });
 
     it('debe lanzar error si hay error en la consulta', async () => {
-      const mockSingle = jest.fn().mockResolvedValue({ data: null, error: new Error('Connection error') });
+      const mockSingle = resolved({ data: null, error: new Error('Connection error') });
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -153,7 +159,7 @@ describe('SupabasePetSurgeryRepository', () => {
         },
       ];
       
-      const mockOrder = jest.fn().mockResolvedValue({ data: mockData, error: null });
+      const mockOrder = resolved({ data: mockData, error: null });
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -168,7 +174,7 @@ describe('SupabasePetSurgeryRepository', () => {
     });
 
     it('debe retornar array vacío si no hay cirugías', async () => {
-      const mockOrder = jest.fn().mockResolvedValue({ data: [], error: null });
+      const mockOrder = resolved({ data: [], error: null });
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -198,7 +204,7 @@ describe('SupabasePetSurgeryRepository', () => {
         },
       ];
       
-      const mockOrder = jest.fn().mockResolvedValue({ data: mockData, error: null });
+      const mockOrder = resolved({ data: mockData, error: null });
       (supabase.from as jest.Mock).mockReturnValue({
         select: jest.fn().mockReturnThis(),
         eq: jest.fn().mockReturnThis(),
@@ -224,7 +230,7 @@ describe('SupabasePetSurgeryRepository', () => {
         status: 'SCHEDULED',
       });
       
-      const mockEq = jest.fn().mockResolvedValue({ error: null });
+      const mockEq = resolved({ error: null });
       const mockUpdate = jest.fn().mockReturnValue({ eq: mockEq });
       
       (supabase.from as jest.Mock).mockReturnValue({
@@ -245,7 +251,7 @@ describe('SupabasePetSurgeryRepository', () => {
         status: 'SCHEDULED',
       });
       
-      const mockEq = jest.fn().mockResolvedValue({ error: new Error('Update failed') });
+      const mockEq = resolved({ error: new Error('Update failed') });
       const mockUpdate = jest.fn().mockReturnValue({ eq: mockEq });
       
       (supabase.from as jest.Mock).mockReturnValue({
@@ -258,7 +264,7 @@ describe('SupabasePetSurgeryRepository', () => {
 
   describe('delete', () => {
     it('debe eliminar una cirugía exitosamente', async () => {
-      const mockEq = jest.fn().mockResolvedValue({ error: null });
+      const mockEq = resolved({ error: null });
       const mockDelete = jest.fn().mockReturnValue({ eq: mockEq });
       
       (supabase.from as jest.Mock).mockReturnValue({
@@ -269,7 +275,7 @@ describe('SupabasePetSurgeryRepository', () => {
     });
 
     it('debe lanzar error si falla la eliminación', async () => {
-      const mockEq = jest.fn().mockResolvedValue({ error: new Error('Delete failed') });
+      const mockEq = resolved({ error: new Error('Delete failed') });
       const mockDelete = jest.fn().mockReturnValue({ eq: mockEq });
       
       (supabase.from as jest.Mock).mockReturnValue({

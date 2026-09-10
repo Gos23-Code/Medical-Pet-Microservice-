@@ -2,6 +2,8 @@
 import { GetSurgeriesUseCase } from '@/src/application/use-cases/surgery/get-surgery.use-case';
 import { PetSurgeryRepository } from '@/src/domain/repositories/pet-surgery.repository';
 import { PetSurgery } from '@/src/domain/entities/pet-surgery.entity';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+
 
 const createMockRepository = (): jest.Mocked<PetSurgeryRepository> => ({
   save: jest.fn(),

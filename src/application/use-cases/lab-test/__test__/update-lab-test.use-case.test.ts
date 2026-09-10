@@ -2,6 +2,8 @@
 import { UpdateLabTestResultUseCase } from '@/src/application/use-cases/lab-test/update-lab-test.use.case';
 import { LabTestRepository } from '@/src/domain/repositories/lab-test.repository';
 import { UpdateLabTestResultDto, LabTestResponseDto } from '@/src/application/dtos/lab-test.dto';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+
 
 describe('UpdateLabTestResultUseCase', () => {
   let useCase: UpdateLabTestResultUseCase;

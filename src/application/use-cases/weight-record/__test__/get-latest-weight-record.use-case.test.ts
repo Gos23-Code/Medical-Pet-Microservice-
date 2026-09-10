@@ -1,5 +1,6 @@
 import { GetLatestWeightRecordByPetIdUseCase } from '@/src/application/use-cases/weight-record/get-latest-weight-record.use-case';
 import { weightRecordRepository } from '@/src/domain/repositories/weight-record.repository';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 const mockLatest = {
   petId: 'uuid-1',
@@ -7,17 +8,19 @@ const mockLatest = {
 };
 
 //Devuelve el mas reciente
-const mockRepository: weightRecordRepository = {
+const mockRepository: jest.Mocked<weightRecordRepository> = {
   save: jest.fn(),
   findAll: jest.fn(),
   findByPetId: jest.fn(),
-  getLatestByPetId: jest.fn().mockResolvedValue(mockLatest),
+  getLatestByPetId: jest.fn(),
   updateWeightByPetId: jest.fn(),
 };
+mockRepository.getLatestByPetId.mockResolvedValue(mockLatest);
 
 describe('GetLatestWeightRecordByPetIdUseCase', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRepository.getLatestByPetId.mockResolvedValue(mockLatest);
   });
 
   // Verifica petId y Weight
@@ -57,15 +60,16 @@ describe('GetLatestWeightRecordByPetIdUseCase', () => {
 
   //Si no esta el ulrimo registro lanza error
   it('Debe lanzar error si el repositorio falla', async () => {
-    const failRepository: weightRecordRepository = {
+    const failRepository: jest.Mocked<weightRecordRepository> = {
       save: jest.fn(),
       findAll: jest.fn(),
       findByPetId: jest.fn(),
-      getLatestByPetId: jest.fn().mockRejectedValue(
-        new Error('Error obteniendo último peso')
-      ),
+      getLatestByPetId: jest.fn(),
       updateWeightByPetId: jest.fn(),
     };
+    failRepository.getLatestByPetId.mockRejectedValue(
+      new Error('Error obteniendo último peso')
+    );
 
     const useCase = new GetLatestWeightRecordByPetIdUseCase(failRepository);
 

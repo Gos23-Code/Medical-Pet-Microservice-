@@ -1,38 +1,49 @@
 // src/infrastructure/database/repositories/__test__/supabase-vaccine.repository.test.ts
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { VaccineRepository } from '../supabase-vaccine.repository';
-import { createClient } from '@supabase/supabase-js';
 import { Vaccine } from '@/src/domain/entities/vaccine.entity';
 
-// Mock de Supabase
-jest.mock('@supabase/supabase-js');
-
-// Crear un mock del repositorio
+// ✅ Mock del repositorio
 jest.mock('../supabase-vaccine.repository', () => {
   return {
-    VaccineRepository: jest.fn().mockImplementation(() => {
-      return {
-        addVaccine: jest.fn(),
-        getByPetId: jest.fn(),
-        updateVaccine: jest.fn(),
-        deleteVaccine: jest.fn(),
-        getById: jest.fn()
-      };
-    })
+    VaccineRepository: jest.fn().mockImplementation(() => ({
+      addVaccine: jest.fn(),
+      getByPetId: jest.fn(),
+      updateVaccine: jest.fn(),
+      deleteVaccine: jest.fn(),
+      getById: jest.fn(),
+      getPendingVaccines: jest.fn(),
+      incrementReminderCount: jest.fn(),
+      updateLastReminderSent: jest.fn(),
+      markAsOverdue: jest.fn(),
+      markAsApplied: jest.fn(),
+      getVaccinesDueToday: jest.fn(),
+      getOverdueVaccines: jest.fn(),
+    })),
   };
 });
 
-// Definir tipos para los mocks
-interface MockSupabaseClient {
-  from: jest.Mock;
-}
-
 describe('VaccineRepository', () => {
-  let repository: jest.Mocked<VaccineRepository>;
-  let mockSupabaseClient: MockSupabaseClient; // ✅ Tipado correcto
+  // ✅ Usar el tipo correcto
+  let repository: jest.Mocked<Pick<VaccineRepository, 
+    | 'addVaccine' 
+    | 'getByPetId' 
+    | 'updateVaccine' 
+    | 'deleteVaccine' 
+    | 'getById'
+    | 'getPendingVaccines'
+    | 'incrementReminderCount'
+    | 'updateLastReminderSent'
+    | 'markAsOverdue'
+    | 'markAsApplied'
+    | 'getVaccinesDueToday'
+    | 'getOverdueVaccines'
+  >>;
 
   const mockVaccineData = {
     id: '123e4567-e89b-12d3-a456-426614174000',
     pet_id: '123e4567-e89b-12d3-a456-426614174001',
+    user_id: 'user-123',
     name: 'Rabia',
     lot_number: 'LOT-2024-001',
     application_date: '2024-01-15',
@@ -40,42 +51,67 @@ describe('VaccineRepository', () => {
     veterinarian: 'Dr. Pérez',
     notes: 'Primera dosis anual',
     created_at: '2024-01-15T10:00:00Z',
-    updated_at: '2024-01-15T10:00:00Z'
+    updated_at: '2024-01-15T10:00:00Z',
+    status: 'PENDIENTE',
+    reminder_count: 0,
+    last_reminder_sent_at: null,
   };
 
-  const mockVaccine = Vaccine.create(
-    mockVaccineData.id,
-    mockVaccineData.pet_id,
-    mockVaccineData.name,
-    mockVaccineData.lot_number,
-    new Date(mockVaccineData.application_date),
-    new Date(mockVaccineData.next_dose_date),
-    mockVaccineData.veterinarian,
-    mockVaccineData.notes,
-    new Date(mockVaccineData.created_at)
-  );
+  // ✅ Helper para crear un Vaccine
+  const createMockVaccine = () => {
+    return Vaccine.create(
+      mockVaccineData.id,
+      mockVaccineData.pet_id,
+      mockVaccineData.user_id,
+      mockVaccineData.name,
+      mockVaccineData.lot_number,
+      new Date(mockVaccineData.application_date),
+      new Date(mockVaccineData.next_dose_date),
+      mockVaccineData.veterinarian,
+      mockVaccineData.notes,
+      new Date(mockVaccineData.created_at)
+    );
+  };
 
   beforeEach(() => {
     jest.clearAllMocks();
 
-    // Mockear createClient con el tipo correcto
-    mockSupabaseClient = {
-      from: jest.fn()
-    };
-    
-    (createClient as jest.Mock).mockReturnValue(mockSupabaseClient);
-
-    // Crear una instancia mock del repositorio
-    repository = new VaccineRepository() as jest.Mocked<VaccineRepository>;
+    // ✅ Crear el mock con el tipo correcto
+    repository = {
+      addVaccine: jest.fn().mockImplementation(() => Promise.resolve(createMockVaccine())),
+      getByPetId: jest.fn().mockImplementation(() => Promise.resolve([createMockVaccine()])),
+      updateVaccine: jest.fn().mockImplementation(() => Promise.resolve(createMockVaccine())),
+      deleteVaccine: jest.fn().mockImplementation(() => Promise.resolve(undefined)),
+      getById: jest.fn().mockImplementation(() => Promise.resolve(createMockVaccine())),
+      getPendingVaccines: jest.fn().mockImplementation(() => Promise.resolve([createMockVaccine()])),
+      incrementReminderCount: jest.fn().mockImplementation(() => Promise.resolve(undefined)),
+      updateLastReminderSent: jest.fn().mockImplementation(() => Promise.resolve(undefined)),
+      markAsOverdue: jest.fn().mockImplementation(() => Promise.resolve(undefined)),
+      markAsApplied: jest.fn().mockImplementation(() => Promise.resolve(undefined)),
+      getVaccinesDueToday: jest.fn().mockImplementation(() => Promise.resolve([createMockVaccine()])),
+      getOverdueVaccines: jest.fn().mockImplementation(() => Promise.resolve([createMockVaccine()])),
+    } as jest.Mocked<Pick<VaccineRepository, 
+      | 'addVaccine' 
+      | 'getByPetId' 
+      | 'updateVaccine' 
+      | 'deleteVaccine' 
+      | 'getById'
+      | 'getPendingVaccines'
+      | 'incrementReminderCount'
+      | 'updateLastReminderSent'
+      | 'markAsOverdue'
+      | 'markAsApplied'
+      | 'getVaccinesDueToday'
+      | 'getOverdueVaccines'
+    >>;
   });
 
   describe('getByPetId', () => {
     it('debe obtener vacunas por ID de mascota', async () => {
       const petId = '123e4567-e89b-12d3-a456-426614174001';
-      const mockVaccines = [mockVaccine];
+      const mockVaccines = [createMockVaccine()];
 
-      // ✅ Simplemente mockear el método
-      repository.getByPetId = jest.fn().mockResolvedValue(mockVaccines);
+      repository.getByPetId.mockImplementation(() => Promise.resolve(mockVaccines));
 
       const result = await repository.getByPetId(petId);
 
@@ -88,7 +124,7 @@ describe('VaccineRepository', () => {
     it('debe retornar array vacío si no hay vacunas', async () => {
       const petId = '123e4567-e89b-12d3-a456-426614174001';
 
-      repository.getByPetId = jest.fn().mockResolvedValue([]);
+      repository.getByPetId.mockImplementation(() => Promise.resolve([]));
 
       const result = await repository.getByPetId(petId);
 
@@ -99,8 +135,8 @@ describe('VaccineRepository', () => {
     it('debe lanzar error si falla la consulta', async () => {
       const petId = '123e4567-e89b-12d3-a456-426614174001';
 
-      repository.getByPetId = jest.fn().mockRejectedValue(
-        new Error('Error al obtener vacunas: Error de base de datos')
+      repository.getByPetId.mockImplementation(() => 
+        Promise.reject(new Error('Error al obtener vacunas: Error de base de datos'))
       );
 
       await expect(repository.getByPetId(petId)).rejects.toThrow(
@@ -113,6 +149,7 @@ describe('VaccineRepository', () => {
     it('debe agregar una vacuna exitosamente', async () => {
       const vaccineData = {
         petId: '123e4567-e89b-12d3-a456-426614174001',
+        userId: 'user-123',
         name: 'Rabia',
         lotNumber: 'LOT-2024-001',
         applicationDate: new Date('2024-01-15'),
@@ -121,7 +158,8 @@ describe('VaccineRepository', () => {
         notes: 'Primera dosis anual'
       };
 
-      repository.addVaccine = jest.fn().mockResolvedValue(mockVaccine);
+      const mockVaccine = createMockVaccine();
+      repository.addVaccine.mockImplementation(() => Promise.resolve(mockVaccine));
 
       const result = await repository.addVaccine(vaccineData);
 
@@ -134,6 +172,7 @@ describe('VaccineRepository', () => {
     it('debe lanzar error si falla la inserción', async () => {
       const vaccineData = {
         petId: '123e4567-e89b-12d3-a456-426614174001',
+        userId: 'user-123',
         name: 'Rabia',
         lotNumber: 'LOT-2024-001',
         applicationDate: new Date('2024-01-15'),
@@ -142,8 +181,8 @@ describe('VaccineRepository', () => {
         notes: 'Primera dosis anual'
       };
 
-      repository.addVaccine = jest.fn().mockRejectedValue(
-        new Error('Error al agregar vacuna: Error de base de datos')
+      repository.addVaccine.mockImplementation(() => 
+        Promise.reject(new Error('Error al agregar vacuna: Error de base de datos'))
       );
 
       await expect(repository.addVaccine(vaccineData)).rejects.toThrow(
@@ -163,6 +202,7 @@ describe('VaccineRepository', () => {
       const updatedVaccine = Vaccine.create(
         id,
         mockVaccineData.pet_id,
+        mockVaccineData.user_id,
         updateData.name!,
         mockVaccineData.lot_number,
         new Date(mockVaccineData.application_date),
@@ -172,7 +212,7 @@ describe('VaccineRepository', () => {
         new Date(mockVaccineData.created_at)
       );
 
-      repository.updateVaccine = jest.fn().mockResolvedValue(updatedVaccine);
+      repository.updateVaccine.mockImplementation(() => Promise.resolve(updatedVaccine));
 
       const result = await repository.updateVaccine(id, updateData);
 
@@ -185,8 +225,8 @@ describe('VaccineRepository', () => {
       const id = '123e4567-e89b-12d3-a456-426614174000';
       const updateData = { name: 'Rabia (Refuerzo)' };
 
-      repository.updateVaccine = jest.fn().mockRejectedValue(
-        new Error('Error al actualizar vacuna: Error de base de datos')
+      repository.updateVaccine.mockImplementation(() => 
+        Promise.reject(new Error('Error al actualizar vacuna: Error de base de datos'))
       );
 
       await expect(repository.updateVaccine(id, updateData)).rejects.toThrow(
@@ -199,7 +239,7 @@ describe('VaccineRepository', () => {
     it('debe eliminar una vacuna exitosamente', async () => {
       const id = '123e4567-e89b-12d3-a456-426614174000';
 
-      repository.deleteVaccine = jest.fn().mockResolvedValue(undefined);
+      repository.deleteVaccine.mockImplementation(() => Promise.resolve(undefined));
 
       await repository.deleteVaccine(id);
 
@@ -209,8 +249,8 @@ describe('VaccineRepository', () => {
     it('debe lanzar error si falla la eliminación', async () => {
       const id = '123e4567-e89b-12d3-a456-426614174000';
 
-      repository.deleteVaccine = jest.fn().mockRejectedValue(
-        new Error('Error al eliminar vacuna: Error de base de datos')
+      repository.deleteVaccine.mockImplementation(() => 
+        Promise.reject(new Error('Error al eliminar vacuna: Error de base de datos'))
       );
 
       await expect(repository.deleteVaccine(id)).rejects.toThrow(
@@ -222,8 +262,9 @@ describe('VaccineRepository', () => {
   describe('getById', () => {
     it('debe obtener una vacuna por ID', async () => {
       const id = '123e4567-e89b-12d3-a456-426614174000';
+      const mockVaccine = createMockVaccine();
 
-      repository.getById = jest.fn().mockResolvedValue(mockVaccine);
+      repository.getById.mockImplementation(() => Promise.resolve(mockVaccine));
 
       const result = await repository.getById(id);
 
@@ -235,7 +276,7 @@ describe('VaccineRepository', () => {
     it('debe retornar null si no encuentra la vacuna', async () => {
       const id = '123e4567-e89b-12d3-a456-426614174000';
 
-      repository.getById = jest.fn().mockResolvedValue(null);
+      repository.getById.mockImplementation(() => Promise.resolve(null));
 
       const result = await repository.getById(id);
 
@@ -246,8 +287,8 @@ describe('VaccineRepository', () => {
     it('debe lanzar error si falla la consulta', async () => {
       const id = '123e4567-e89b-12d3-a456-426614174000';
 
-      repository.getById = jest.fn().mockRejectedValue(
-        new Error('Error al obtener vacuna: Error de base de datos')
+      repository.getById.mockImplementation(() => 
+        Promise.reject(new Error('Error al obtener vacuna: Error de base de datos'))
       );
 
       await expect(repository.getById(id)).rejects.toThrow(

@@ -1,8 +1,9 @@
 // add-weight-record.use-case.test.ts
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 import { AddWeightRecordUseCase } from '../add-weight-record.use-case';
 import { weightRecordMapper } from '@/src/application/mappers/weight-record.mapper';
 import { weightRecordRepository } from '@/src/domain/repositories/weight-record.repository';
-import { CreateWeightRecordDto, weightRecordResponseDto } from '@/src/application/dtos/weight-record.dto';
+import { CreateWeightRecordDto, WeightRecordResponseDto } from '@/src/application/dtos/weight-record.dto';
 import { weightRecord } from '@/src/domain/entities/weight-record.entity';
 
 // Mock del mapper
@@ -13,6 +14,8 @@ describe('AddWeightRecordUseCase', () => {
   let mockRepository: jest.Mocked<weightRecordRepository>;
   
   const mockPetId = '987fcdeb-51a2-43d7-9b56-2546b7a3c8e9';
+  const mockUserId = 'user-123';
+  const mockUnit = 'kg' as const;
   const mockWeight = 5.5;
   const mockDate = '2026-07-29';
   const mockNote = 'Peso después del baño';
@@ -20,6 +23,7 @@ describe('AddWeightRecordUseCase', () => {
   const mockCreatedAt = new Date('2026-07-29T10:00:00Z');
 
   const mockCreateDto: CreateWeightRecordDto = {
+    userId: mockUserId,
     petId: mockPetId,
     weight: mockWeight,
     date: mockDate,
@@ -34,11 +38,13 @@ describe('AddWeightRecordUseCase', () => {
     note: mockNote,
   });
 
-  const mockResponseDto: weightRecordResponseDto = {
+  const mockResponseDto: WeightRecordResponseDto = {
     message: 'WeightRecord creado correctamente',
     id: mockRecordId,
     petId: mockPetId,
+    userId: mockUserId,
     weight: mockWeight,
+    unit: mockUnit,
     date: mockDate,
     note: mockNote,
     createdAt: mockCreatedAt.toISOString(),
@@ -83,6 +89,7 @@ describe('AddWeightRecordUseCase', () => {
     it('should handle creation without optional fields', async () => {
       // Arrange
       const minimalDto: CreateWeightRecordDto = {
+        userId: mockUserId,
         petId: mockPetId,
         weight: mockWeight,
       };
@@ -92,11 +99,13 @@ describe('AddWeightRecordUseCase', () => {
         weight: mockWeight,
       });
 
-      const minimalResponse: weightRecordResponseDto = {
+      const minimalResponse: WeightRecordResponseDto = {
         message: 'WeightRecord creado correctamente',
         id: mockRecordId,
         petId: mockPetId,
+        userId: mockUserId,
         weight: mockWeight,
+        unit: mockUnit,
         createdAt: mockCreatedAt.toISOString(),
       };
 
@@ -117,6 +126,7 @@ describe('AddWeightRecordUseCase', () => {
     it('should handle creation with date only', async () => {
       // Arrange
       const dtoWithDateOnly: CreateWeightRecordDto = {
+        userId: mockUserId,
         petId: mockPetId,
         weight: mockWeight,
         date: mockDate,
@@ -128,11 +138,13 @@ describe('AddWeightRecordUseCase', () => {
         date: new Date(mockDate),
       });
 
-      const responseWithDate: weightRecordResponseDto = {
+      const responseWithDate: WeightRecordResponseDto = {
         message: 'WeightRecord creado correctamente',
         id: mockRecordId,
         petId: mockPetId,
+        userId: mockUserId,
         weight: mockWeight,
+        unit: mockUnit,
         date: mockDate,
         createdAt: mockCreatedAt.toISOString(),
       };
@@ -154,6 +166,7 @@ describe('AddWeightRecordUseCase', () => {
     it('should handle creation with note only', async () => {
       // Arrange
       const dtoWithNoteOnly: CreateWeightRecordDto = {
+        userId: mockUserId,
         petId: mockPetId,
         weight: mockWeight,
         note: mockNote,
@@ -165,11 +178,13 @@ describe('AddWeightRecordUseCase', () => {
         note: mockNote,
       });
 
-      const responseWithNote: weightRecordResponseDto = {
+      const responseWithNote: WeightRecordResponseDto = {
         message: 'WeightRecord creado correctamente',
         id: mockRecordId,
         petId: mockPetId,
+        userId: mockUserId,
         weight: mockWeight,
+        unit: mockUnit,
         note: mockNote,
         createdAt: mockCreatedAt.toISOString(),
       };
@@ -191,6 +206,7 @@ describe('AddWeightRecordUseCase', () => {
     it('should handle decimal weight values', async () => {
       // Arrange
       const dtoWithDecimal: CreateWeightRecordDto = {
+        userId: mockUserId,
         petId: mockPetId,
         weight: 5.75,
         note: 'Peso con decimales',
@@ -202,11 +218,13 @@ describe('AddWeightRecordUseCase', () => {
         note: 'Peso con decimales',
       });
 
-      const responseWithDecimal: weightRecordResponseDto = {
+      const responseWithDecimal: WeightRecordResponseDto = {
         message: 'WeightRecord creado correctamente',
         id: mockRecordId,
         petId: mockPetId,
+        userId: mockUserId,
         weight: 5.75,
+        unit: mockUnit,
         note: 'Peso con decimales',
         createdAt: mockCreatedAt.toISOString(),
       };
@@ -251,6 +269,7 @@ describe('AddWeightRecordUseCase', () => {
     it('should handle empty note string', async () => {
       // Arrange
       const dtoWithEmptyNote: CreateWeightRecordDto = {
+        userId: mockUserId,
         petId: mockPetId,
         weight: mockWeight,
         note: '',
@@ -262,11 +281,13 @@ describe('AddWeightRecordUseCase', () => {
         note: '',
       });
 
-      const responseWithEmptyNote: weightRecordResponseDto = {
+      const responseWithEmptyNote: WeightRecordResponseDto = {
         message: 'WeightRecord creado correctamente',
         id: mockRecordId,
         petId: mockPetId,
+        userId: mockUserId,
         weight: mockWeight,
+        unit: mockUnit,
         note: '',
         createdAt: mockCreatedAt.toISOString(),
       };
@@ -286,6 +307,7 @@ describe('AddWeightRecordUseCase', () => {
       // Arrange
       const largeWeight = 99999.99;
       const dtoWithLargeWeight: CreateWeightRecordDto = {
+        userId: mockUserId,
         petId: mockPetId,
         weight: largeWeight,
       };
@@ -295,11 +317,13 @@ describe('AddWeightRecordUseCase', () => {
         weight: largeWeight,
       });
 
-      const responseWithLargeWeight: weightRecordResponseDto = {
+      const responseWithLargeWeight: WeightRecordResponseDto = {
         message: 'WeightRecord creado correctamente',
         id: mockRecordId,
         petId: mockPetId,
+        userId: mockUserId,
         weight: largeWeight,
+        unit: mockUnit,
         createdAt: mockCreatedAt.toISOString(),
       };
 
@@ -318,6 +342,7 @@ describe('AddWeightRecordUseCase', () => {
       // Arrange
       const smallWeight = 0.001;
       const dtoWithSmallWeight: CreateWeightRecordDto = {
+        userId: mockUserId,
         petId: mockPetId,
         weight: smallWeight,
       };
@@ -327,11 +352,13 @@ describe('AddWeightRecordUseCase', () => {
         weight: smallWeight,
       });
 
-      const responseWithSmallWeight: weightRecordResponseDto = {
+      const responseWithSmallWeight: WeightRecordResponseDto = {
         message: 'WeightRecord creado correctamente',
         id: mockRecordId,
         petId: mockPetId,
+        userId: mockUserId,
         weight: smallWeight,
+        unit: mockUnit,
         createdAt: mockCreatedAt.toISOString(),
       };
 
@@ -357,6 +384,7 @@ describe('AddWeightRecordUseCase', () => {
 
       // Assert
       expect(weightRecordMapper.toDomain).toHaveBeenCalledWith({
+        userId: mockUserId,
         petId: mockPetId,
         weight: mockWeight,
         date: mockDate,
@@ -415,6 +443,7 @@ describe('AddWeightRecordUseCase', () => {
     it('should handle invalid date format', async () => {
       // Arrange
       const invalidDto: CreateWeightRecordDto = {
+        userId: mockUserId,
         petId: mockPetId,
         weight: mockWeight,
         date: 'invalid-date',
@@ -462,11 +491,13 @@ describe('AddWeightRecordUseCase', () => {
   describe('response mapping', () => {
     it('should return the response DTO from repository', async () => {
       // Arrange
-      const customResponse: weightRecordResponseDto = {
+      const customResponse: WeightRecordResponseDto = {
         message: 'Custom message',
         id: mockRecordId,
         petId: mockPetId,
+        userId: mockUserId,
         weight: mockWeight,
+        unit: mockUnit,
         date: mockDate,
         note: mockNote,
         createdAt: mockCreatedAt.toISOString(),

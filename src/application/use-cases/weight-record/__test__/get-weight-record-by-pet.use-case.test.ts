@@ -1,22 +1,25 @@
 import { GetWeightRecordsByPetIdUseCase } from '@/src/application/use-cases/weight-record/get-weigh-record-by-pet.use-case';
 import { weightRecordRepository } from '@/src/domain/repositories/weight-record.repository';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 const mockData = [
   { petId: 'uuid-1', weight: 4.5 },
   { petId: 'uuid-1', weight: 5.0 },
 ];
 
-const mockRepository: weightRecordRepository = {
+const mockRepository: jest.Mocked<weightRecordRepository> = {
   save: jest.fn(),
   findAll: jest.fn(),
-  findByPetId: jest.fn().mockResolvedValue(mockData),
+  findByPetId: jest.fn(),
   getLatestByPetId: jest.fn(),
   updateWeightByPetId: jest.fn(),
 };
+mockRepository.findByPetId.mockResolvedValue(mockData);
 
 describe('GetWeightRecordsByPetIdUseCase', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockRepository.findByPetId.mockResolvedValue(mockData);
   });
 
   //Devuelve los registros correctamente
@@ -54,15 +57,16 @@ describe('GetWeightRecordsByPetIdUseCase', () => {
 
   //Lanza un error si no se encuenta un registro en la bd
   it('Debe lanzar error si el repositorio falla', async () => {
-    const failRepository: weightRecordRepository = {
+    const failRepository: jest.Mocked<weightRecordRepository> = {
       save: jest.fn(),
       findAll: jest.fn(),
-      findByPetId: jest.fn().mockRejectedValue(
-        new Error('No se encontraron registros para petId')
-      ),
+      findByPetId: jest.fn(),
       getLatestByPetId: jest.fn(),
       updateWeightByPetId: jest.fn(),
     };
+    failRepository.findByPetId.mockRejectedValue(
+      new Error('No se encontraron registros para petId')
+    );
 
     const useCase = new GetWeightRecordsByPetIdUseCase(failRepository);
 

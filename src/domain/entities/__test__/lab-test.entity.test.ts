@@ -1,4 +1,5 @@
 import { LabTest } from '@/src/domain/entities/lab-test.entity';
+import { describe, it, expect } from '@jest/globals';
 
 describe('LabTest Entity', () => {
   const mockProps = {

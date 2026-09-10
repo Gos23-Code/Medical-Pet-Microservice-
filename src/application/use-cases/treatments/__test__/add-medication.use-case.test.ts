@@ -22,6 +22,8 @@ describe('AddMedicationUseCase', () => {
   });
 
   const validDto: AddMedicationDTO = {
+    userId: 'user-123',
+    petId: 'pet-123',
     name: 'Amoxicilina',
     dosage: '500mg',
     frequency: 'Cada 12 horas',

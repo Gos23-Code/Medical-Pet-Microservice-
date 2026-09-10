@@ -5,24 +5,107 @@ import { GetWeightRecordsByPetIdUseCase } from '@/src/application/use-cases/weig
 import { UpdateWeightRecordUseCase} from '@/src/application/use-cases/weight-record/update-weight-record.use-case';
 import { SupabaseWeightRecordRepository } from '@/src/infrastructure/database/repositories/supabase-weight-record.repository';
 import { GetLatestWeightRecordByPetIdUseCase } from '@/src/application/use-cases//weight-record/get-latest-weight-record.use-case';
+import { createWeightRecordPublisher } from '@/src/infrastructure/pubsub/pubsub.factory';
 
 const repository = new SupabaseWeightRecordRepository();
 
-//POST
+// ✅ Obtener instancia del publisher
+const weightRecordPublisher = createWeightRecordPublisher();
+
+// ============================================
+// POST - Crear registro de peso
+// ============================================
 export async function POST(req: NextRequest) {
   console.log('🚀 POST /api/weightRecord');
   try {
     const body = await req.json();
 
+    console.log("📦 Body recibido:", body);
+
+    // ✅ Validar userId (necesario para notificaciones)
+    if (!body.userId) {
+      return NextResponse.json(
+        { error: 'userId es requerido para notificaciones' },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Validar petId
+    if (!body.petId) {
+      return NextResponse.json(
+        { error: 'petId es requerido' },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Validar weight
+    if (!body.weight) {
+      return NextResponse.json(
+        { error: 'weight es requerido' },
+        { status: 400 }
+      );
+    }
+
+    // ✅ Crear DTO con todos los campos requeridos
     const dto = {
+      userId: body.userId,
       petId: body.petId,
       weight: body.weight,
+      unit: body.unit || 'kg',
       date: body.date,
       note: body.note,
     };
 
     const useCase = new AddWeightRecordUseCase(repository);
     const result = await useCase.execute(dto);
+
+    // ✅ Obtener el peso anterior para detectar alertas
+    const getLatestUseCase = new GetLatestWeightRecordByPetIdUseCase(repository);
+    const previousWeight = await getLatestUseCase.execute(body.petId);
+
+    // ✅ PUBLICAR EN PUB/SUB - Peso registrado
+    console.log("📤 Publicando evento WEIGHT_RECORDED...");
+    try {
+      await weightRecordPublisher.publishWeightRecorded({
+        weightId: result.id,
+        petId: body.petId,
+        userId: body.userId,
+        weight: body.weight,
+        unit: body.unit || 'kg',
+        recordedAt: body.date || new Date().toISOString(),
+        notes: body.note,
+      });
+      console.log("✅ Evento WEIGHT_RECORDED publicado correctamente");
+    } catch (pubsubError) {
+      console.error("❌ Error publicando en Pub/Sub:", pubsubError);
+    }
+
+    // ✅ PUBLICAR EN PUB/SUB - Alerta de peso (si hay cambio significativo)
+    if (previousWeight && previousWeight.weight) {
+      const previous = previousWeight.weight;
+      const current = body.weight;
+      const percentageChange = Math.abs(((current - previous) / previous) * 100);
+      
+      // Si el cambio es mayor al 10%
+      if (percentageChange > 10) {
+        const alertType = current > previous ? 'GAIN' : 'LOSS';
+        console.log(`📤 Publicando evento WEIGHT_ALERT (${percentageChange.toFixed(1)}% ${alertType})...`);
+        try {
+          await weightRecordPublisher.publishWeightAlert({
+            petId: body.petId,
+            userId: body.userId,
+            currentWeight: current,
+            previousWeight: previous,
+            percentageChange: percentageChange,
+            alertType: alertType,
+            alertedAt: new Date().toISOString(),
+          });
+          console.log("✅ Evento WEIGHT_ALERT publicado correctamente");
+        } catch (pubsubError) {
+          console.error("❌ Error publicando en Pub/Sub:", pubsubError);
+        }
+      }
+    }
 
     return NextResponse.json(result, { status: 201 });
 
@@ -34,7 +117,9 @@ export async function POST(req: NextRequest) {
   }
 }
 
-//GET
+// ============================================
+// GET - Obtener registros de peso
+// ============================================
 export async function GET(req: NextRequest) {
   console.log('🚀 GET /api/weightRecord');
   try {
@@ -73,7 +158,9 @@ export async function GET(req: NextRequest) {
   }
 }
 
-//PATCH
+// ============================================
+// PATCH - Actualizar registro de peso
+// ============================================
 export async function PATCH(req: NextRequest) {
   console.log('🚀 PATCH /api/weightRecord');
   try {
@@ -88,6 +175,16 @@ export async function PATCH(req: NextRequest) {
 
     const body = await req.json();
 
+    console.log("📦 Body recibido:", body);
+
+    // ✅ Validar userId (necesario para notificaciones)
+    if (!body.userId) {
+      return NextResponse.json(
+        { error: 'userId es requerido para notificaciones' },
+        { status: 400 }
+      );
+    }
+
     if (!body.weight) {
       return NextResponse.json(
         { error: 'weight es requerido' },
@@ -95,8 +192,67 @@ export async function PATCH(req: NextRequest) {
       );
     }
 
+    // 1. Obtener el registro actual para comparar
+    const getLatestUseCase = new GetLatestWeightRecordByPetIdUseCase(repository);
+    const currentRecord = await getLatestUseCase.execute(petId);
+
+    // 2. ✅ Crear DTO con todos los campos requeridos para UPDATE
+    const updateDto = {
+      userId: body.userId,
+      weight: body.weight,
+      unit: body.unit || 'kg',
+      note: body.note,
+    };
+
+    // 3. Actualizar el registro
     const useCase = new UpdateWeightRecordUseCase(repository);
-    const result = await useCase.execute(petId, { weight: body.weight });
+    const result = await useCase.execute(petId, updateDto);
+
+    // 4. ✅ PUBLICAR EN PUB/SUB - Peso actualizado (usando WEIGHT_UPDATED)
+    if (currentRecord && currentRecord.weight !== body.weight) {
+      console.log("📤 Publicando evento WEIGHT_UPDATED...");
+      try {
+        await weightRecordPublisher.publishWeightUpdated({
+          weightId: result.id || currentRecord.id,
+          petId: petId,
+          userId: body.userId,
+          oldWeight: currentRecord.weight,
+          newWeight: body.weight,
+          unit: body.unit || 'kg',
+          updatedAt: new Date().toISOString(),
+          notes: body.note || currentRecord.note,
+        });
+        console.log("✅ Evento WEIGHT_UPDATED publicado correctamente");
+      } catch (pubsubError) {
+        console.error("❌ Error publicando en Pub/Sub:", pubsubError);
+      }
+
+      // 5. ✅ Verificar alerta de peso
+      if (currentRecord) {
+        const previous = currentRecord.weight;
+        const current = body.weight;
+        const percentageChange = Math.abs(((current - previous) / previous) * 100);
+        
+        if (percentageChange > 10) {
+          const alertType = current > previous ? 'GAIN' : 'LOSS';
+          console.log(`📤 Publicando evento WEIGHT_ALERT (${percentageChange.toFixed(1)}% ${alertType})...`);
+          try {
+            await weightRecordPublisher.publishWeightAlert({
+              petId: petId,
+              userId: body.userId,
+              currentWeight: current,
+              previousWeight: previous,
+              percentageChange: percentageChange,
+              alertType: alertType,
+              alertedAt: new Date().toISOString(),
+            });
+            console.log("✅ Evento WEIGHT_ALERT publicado correctamente");
+          } catch (pubsubError) {
+            console.error("❌ Error publicando en Pub/Sub:", pubsubError);
+          }
+        }
+      }
+    }
 
     return NextResponse.json(result, { status: 200 });
 

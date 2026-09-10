@@ -7,6 +7,8 @@ export interface CreateTreatmentDTO {
 }
 
 export interface UpdateTreatmentDTO {
+  userId: string;          
+  petId: string;   
   startDate?: string;
   endDate?: string | null;
   notes?: string;
@@ -22,7 +24,13 @@ export interface TreatmentResponseDTO {
   isActive: boolean;
   createdAt: string;
   updatedAt: string;
+   progress: number;
+  status: 'ACTIVE' | 'ACTIVE_INDEFINITE' | 'ACTIVE_LAST_DAY' | 'EXPIRED' | 'COMPLETED';
+  daysRemaining: number | null;
+  totalDays: number | null;
+  elapsedDays: number;
 }
+
 
 export interface MedicationFromService {
   id: string;
@@ -37,7 +45,8 @@ export interface MedicationFromService {
 export interface IsActiveResponseDTO {
   treatmentId: string;
   isActive: boolean;
-  status: 'ACTIVE' | 'ACTIVE_INDEFINITE' | 'ACTIVE_LAST_DAY' | 'EXPIRED';
+  status: 'ACTIVE' | 'ACTIVE_INDEFINITE' | 'ACTIVE_LAST_DAY' | 'EXPIRED' | 'COMPLETED';
   message: string;
+  progress: number;   
   checkedAt: string;
 }

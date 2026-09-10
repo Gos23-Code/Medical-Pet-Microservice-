@@ -1,14 +1,19 @@
 // __tests__/application/use-cases/lab-test/get-lab-test.use-case.test.ts
 import { GetLabTestsByVisitIdUseCase } from '@/src/application/use-cases/lab-test/get-lab-test.use-case';
 import { LabTestRepository } from '@/src/domain/repositories/lab-test.repository';
+import { labTestListResponseDto } from '@/src/application/dtos/lab-test.dto';
+import { describe, it, expect, beforeEach, jest } from '@jest/globals';
+
 
 describe('GetLabTestsByVisitIdUseCase', () => {
   let useCase: GetLabTestsByVisitIdUseCase;
   let mockRepository: jest.Mocked<LabTestRepository>;
 
-  const mockLabTests = [
+  const mockLabTests: labTestListResponseDto[] = [
     {
       id: '1',
+      user_id: 'usr-123',
+      pet_id: 'pet-789',
       visit_id: 'vis-456',
       name: 'Glucosa',
       result: '95',
@@ -17,6 +22,8 @@ describe('GetLabTestsByVisitIdUseCase', () => {
     },
     {
       id: '2',
+      user_id: 'usr-123',
+      pet_id: 'pet-789',
       visit_id: 'vis-456',
       name: 'Colesterol',
       result: '180',

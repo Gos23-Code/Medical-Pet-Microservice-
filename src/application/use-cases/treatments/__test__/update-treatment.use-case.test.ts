@@ -25,6 +25,8 @@ describe('UpdateTreatmentUseCase', () => {
   });
 
   const validId = '123e4567-e89b-12d3-a456-426614174000';
+  const validUserId = 'user-123';
+  const validPetId = 'pet-123';
 
   const createTreatment = () => {
     return Treatment.create({
@@ -45,7 +47,7 @@ describe('UpdateTreatmentUseCase', () => {
       // @ts-expect-error - Mock para pruebas
       mockUpdate.mockResolvedValue(treatment);
 
-      const dto: UpdateTreatmentDTO = { startDate: '2024-02-01' };
+      const dto: UpdateTreatmentDTO = { userId: validUserId, petId: validPetId, startDate: '2024-02-01' };
       await updateTreatmentUseCase.execute(validId, dto);
 
       expect(treatment.startDate).toEqual(new Date('2024-02-01'));
@@ -60,7 +62,7 @@ describe('UpdateTreatmentUseCase', () => {
       // @ts-expect-error - Mock para pruebas
       mockUpdate.mockResolvedValue(treatment);
 
-      const dto: UpdateTreatmentDTO = { endDate: '2024-02-15' };
+      const dto: UpdateTreatmentDTO = { userId: validUserId, petId: validPetId, endDate: '2024-02-15' };
       await updateTreatmentUseCase.execute(validId, dto);
 
       expect(treatment.startDate).toEqual(new Date('2024-01-01'));
@@ -75,7 +77,7 @@ describe('UpdateTreatmentUseCase', () => {
       // @ts-expect-error - Mock para pruebas
       mockUpdate.mockResolvedValue(treatment);
 
-      const dto: UpdateTreatmentDTO = { startDate: '2024-02-01', endDate: '2024-02-28' };
+      const dto: UpdateTreatmentDTO = { userId: validUserId, petId: validPetId, startDate: '2024-02-01', endDate: '2024-02-28' };
       await updateTreatmentUseCase.execute(validId, dto);
 
       expect(treatment.startDate).toEqual(new Date('2024-02-01'));
@@ -87,7 +89,7 @@ describe('UpdateTreatmentUseCase', () => {
       // @ts-expect-error - Mock para pruebas
       mockFindById.mockResolvedValue(null);
 
-      await expect(updateTreatmentUseCase.execute(validId, {}))
+      await expect(updateTreatmentUseCase.execute(validId, { userId: validUserId, petId: validPetId }))
         .rejects
         .toThrow('Tratamiento no encontrado');
       expect(mockUpdate).not.toHaveBeenCalled();
