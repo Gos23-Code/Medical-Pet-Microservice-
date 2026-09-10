@@ -1,10 +1,10 @@
 import { createClient } from '@/src/infrastructure/database/supabase/client';
 import { weightRecord } from '@/src/domain/entities/weight-record.entity';
 import { weightRecordRepository } from '@/src/domain/repositories/weight-record.repository';
-import { weightRecordListResponseDto,
-        weightRecordResponseDto,
-        weightRecordByPetIdResponseDto,
-        weightRecordLatestResponseDto } from '@/src/application/dtos/weight-record.dto';
+import { WeightRecordListResponseDto,
+        WeightRecordResponseDto,
+        WeightRecordByPetIdResponseDto,
+        WeightRecordLatestResponseDto } from '@/src/application/dtos/weight-record.dto';
 
 //Interfas para GetAll
 interface SupabaseWeightRecord {
@@ -24,7 +24,7 @@ interface SupabaseWeightRecordByPetId {
 
 export class SupabaseWeightRecordRepository implements weightRecordRepository {
   //Add
-  async save(record: weightRecord): Promise<weightRecordResponseDto> {
+  async save(record: weightRecord): Promise<WeightRecordResponseDto> {
   const { data, error } = await createClient()
     .from('WeightRecord')
     .insert({
@@ -46,14 +46,16 @@ export class SupabaseWeightRecordRepository implements weightRecordRepository {
     message: 'WeightRecord creado correctamente',
     id: data.id,
     petId: data.PetId,
+    userId: record.userId ?? '',
     weight: data.Weight ?? undefined,
+    unit: record.unit ?? 'kg',
     date: data.Date ?? undefined,
     note: data.Note ?? undefined,
     createdAt: new Date(data.Created_at).toISOString(),
   });
 }
   //GetAll
-  async findAll(): Promise<weightRecordListResponseDto[]> {
+  async findAll(): Promise<WeightRecordListResponseDto[]> {
     const { data, error } = await createClient()
       .from('WeightRecord')
       .select('*')
@@ -66,7 +68,9 @@ export class SupabaseWeightRecordRepository implements weightRecordRepository {
     return data.map((item: SupabaseWeightRecord) => ({
       id: item.id,
       petId: item.PetId,
+      userId: '',
       weight: item.Weight ?? undefined,
+      unit: 'kg' as const,
       date: item.Date ?? undefined,
       note: item.Note ?? undefined,
       createdAt: new Date(item.Created_at).toISOString(),
@@ -74,7 +78,7 @@ export class SupabaseWeightRecordRepository implements weightRecordRepository {
   }
 
   //ListWeightRecord By PetId
-  async findByPetId(petId: string): Promise<weightRecordByPetIdResponseDto[]> {
+  async findByPetId(petId: string): Promise<WeightRecordByPetIdResponseDto[]> {
     const {data, error}= await createClient()
     .from('WeightRecord')
     .select('PetId, Weight')
@@ -91,13 +95,14 @@ export class SupabaseWeightRecordRepository implements weightRecordRepository {
 
     return data.map((item: SupabaseWeightRecordByPetId) => ({
     petId: item.PetId,
+    userId: '',
     weight: item.Weight ?? undefined,
     }));
   
   }
 
   //GetLatestByPetId
-  async getLatestByPetId(petId: string): Promise<weightRecordLatestResponseDto> {
+  async getLatestByPetId(petId: string): Promise<WeightRecordLatestResponseDto> {
     const { data, error } = await createClient()
     .from('WeightRecord')
     .select('PetId, Weight, Date')
@@ -112,13 +117,14 @@ export class SupabaseWeightRecordRepository implements weightRecordRepository {
 
     return {
       petId: data.PetId,
+      userId: '',
       weight: data.Weight ?? undefined,
       date: data.Date ?? undefined,
     };
   }
 
  //Update
-async updateWeightByPetId(petId: string, weight: number): Promise<weightRecordResponseDto> {
+async updateWeightByPetId(petId: string, weight: number): Promise<WeightRecordResponseDto> {
   // Primero obtener el registro más reciente
   const { data: latestData, error: findError } = await createClient()
     .from('WeightRecord')
@@ -157,7 +163,9 @@ async updateWeightByPetId(petId: string, weight: number): Promise<weightRecordRe
     message: 'Peso actualizado',
     id: record.id,
     petId: record.PetId,
+    userId: '',
     weight: record.Weight,
+    unit: 'kg',
     date: record.Date ?? undefined,
     note: record.Note ?? undefined,
     createdAt: new Date(record.Created_at).toISOString(),

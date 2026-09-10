@@ -1,14 +1,14 @@
 import { weightRecord } from '@/src/domain/entities/weight-record.entity';
-import { weightRecordListResponseDto,
-        weightRecordResponseDto,
-        weightRecordByPetIdResponseDto,
-        weightRecordLatestResponseDto
+import { WeightRecordListResponseDto,
+        WeightRecordResponseDto,
+        WeightRecordByPetIdResponseDto,
+        WeightRecordLatestResponseDto
        } from '@/src/application/dtos/weight-record.dto';
 
 export interface weightRecordRepository {
-  save(record: weightRecord): Promise<weightRecordResponseDto>;
-  findAll(): Promise <weightRecordListResponseDto[]>;
-  findByPetId(petId: string): Promise<weightRecordByPetIdResponseDto[]>;
-  getLatestByPetId(petId: string): Promise<weightRecordLatestResponseDto>;
-  updateWeightByPetId(petId: string, weight: number): Promise<weightRecordResponseDto>;
+  save(record: weightRecord): Promise<WeightRecordResponseDto>;
+  findAll(): Promise <WeightRecordListResponseDto[]>;
+  findByPetId(petId: string): Promise<WeightRecordByPetIdResponseDto[]>;
+  getLatestByPetId(petId: string): Promise<WeightRecordLatestResponseDto>;
+  updateWeightByPetId(petId: string, weight: number): Promise<WeightRecordResponseDto>;
 }

@@ -24,6 +24,8 @@ describe('AddLabTestUseCase', () => {
     name: 'Glucosa',
     result: '95',
     normal_range: '70-100',
+    date: new Date(),
+    notes: '',
     created_at: new Date()
   };
 

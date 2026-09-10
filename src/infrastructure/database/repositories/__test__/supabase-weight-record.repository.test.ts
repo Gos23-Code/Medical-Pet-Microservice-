@@ -102,7 +102,9 @@ describe('SupabaseWeightRecordRepository', () => {
         message: 'WeightRecord creado correctamente',
         id: mockRecordId,
         petId: mockPetId,
+        userId: '',
         weight: mockWeight,
+        unit: 'kg',
         date: mockDate,
         note: mockNote,
         createdAt: new Date(mockCreatedAt).toISOString(),
@@ -160,7 +162,9 @@ describe('SupabaseWeightRecordRepository', () => {
       expect(result[0]).toEqual({
         id: mockRecordId,
         petId: mockPetId,
+        userId: '',
         weight: mockWeight,
+        unit: 'kg',
         date: mockDate,
         note: mockNote,
         createdAt: new Date(mockCreatedAt).toISOString(),
@@ -220,10 +224,12 @@ describe('SupabaseWeightRecordRepository', () => {
       expect(result).toHaveLength(2);
       expect(result[0]).toEqual({
         petId: mockPetId,
+        userId: '',
         weight: mockWeight,
       });
       expect(result[1]).toEqual({
         petId: mockPetId,
+        userId: '',
         weight: 6.0,
       });
     });
@@ -276,6 +282,7 @@ describe('SupabaseWeightRecordRepository', () => {
       
       expect(result).toEqual({
         petId: mockPetId,
+        userId: '',
         weight: mockWeight,
         date: mockDate,
       });
@@ -325,7 +332,9 @@ describe('SupabaseWeightRecordRepository', () => {
         message: 'Peso actualizado',
         id: mockRecordId,
         petId: mockPetId,
+        userId: '',
         weight: newWeight,
+        unit: 'kg',
         date: mockDate,
         note: mockNote,
         createdAt: new Date(mockCreatedAt).toISOString(),

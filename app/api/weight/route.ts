@@ -195,6 +195,7 @@ export async function PATCH(req: NextRequest) {
     // 1. Obtener el registro actual para comparar
     const getLatestUseCase = new GetLatestWeightRecordByPetIdUseCase(repository);
     const currentRecord = await getLatestUseCase.execute(petId);
+    const previousWeight: number | undefined = currentRecord?.weight;
 
     // 2. ✅ Crear DTO con todos los campos requeridos para UPDATE
     const updateDto = {
@@ -209,18 +210,18 @@ export async function PATCH(req: NextRequest) {
     const result = await useCase.execute(petId, updateDto);
 
     // 4. ✅ PUBLICAR EN PUB/SUB - Peso actualizado (usando WEIGHT_UPDATED)
-    if (currentRecord && currentRecord.weight !== body.weight) {
+    if (previousWeight !== undefined && previousWeight !== body.weight) {
       console.log("📤 Publicando evento WEIGHT_UPDATED...");
       try {
         await weightRecordPublisher.publishWeightUpdated({
-          weightId: result.id || currentRecord.id,
+          weightId: result.id,
           petId: petId,
           userId: body.userId,
-          oldWeight: currentRecord.weight,
+          oldWeight: previousWeight,
           newWeight: body.weight,
           unit: body.unit || 'kg',
           updatedAt: new Date().toISOString(),
-          notes: body.note || currentRecord.note,
+          notes: body.note,
         });
         console.log("✅ Evento WEIGHT_UPDATED publicado correctamente");
       } catch (pubsubError) {
@@ -228,8 +229,8 @@ export async function PATCH(req: NextRequest) {
       }
 
       // 5. ✅ Verificar alerta de peso
-      if (currentRecord) {
-        const previous = currentRecord.weight;
+      {
+        const previous = previousWeight;
         const current = body.weight;
         const percentageChange = Math.abs(((current - previous) / previous) * 100);
         

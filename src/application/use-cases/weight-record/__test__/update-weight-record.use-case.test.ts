@@ -8,7 +8,9 @@ const mockUpdatedRecord = {
   message: 'Peso actualizado',
   id: '278f0019-4024-49be-9219-8e1691b64fdc',
   petId: 'uuid-1',
+  userId: 'user-123',
   weight: 5.1,
+  unit: 'kg' as const,
   createdAt: new Date().toISOString(),
 };
 

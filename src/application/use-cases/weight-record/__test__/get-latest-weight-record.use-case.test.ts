@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 const mockLatest = {
   petId: 'uuid-1',
+  userId: 'user-123',
   weight: 5.1,
 };
 

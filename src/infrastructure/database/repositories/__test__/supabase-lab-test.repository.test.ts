@@ -172,6 +172,8 @@ describe('SupabaseLabTestRepository', () => {
       expect(result).toHaveLength(1);
       expect(result[0]).toEqual({
         id: mockLabTestData.id,
+        user_id: '',
+        pet_id: '',
         visit_id: mockLabTestData.visit_id,
         name: mockLabTestData.name,
         result: mockLabTestData.result,

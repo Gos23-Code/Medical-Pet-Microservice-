@@ -3,8 +3,8 @@ import { weightRecordRepository } from '@/src/domain/repositories/weight-record.
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
 
 const mockData = [
-  { petId: 'uuid-1', weight: 4.5 },
-  { petId: 'uuid-1', weight: 5.0 },
+  { petId: 'uuid-1', userId: 'user-123', weight: 4.5 },
+  { petId: 'uuid-1', userId: 'user-123', weight: 5.0 },
 ];
 
 const mockRepository: jest.Mocked<weightRecordRepository> = {

@@ -1,7 +1,9 @@
 export interface weightRecordProps {
   id?: string;
   petId?: string;
+  userId?: string;
   weight?: number;
+  unit?: 'kg' | 'lb';
   date?: Date;
   note?: string;
   createdAt: Date;
@@ -25,7 +27,9 @@ export class weightRecord {
 
   get id() { return this.props.id; }
   get petId() { return this.props.petId; }
+  get userId() { return this.props.userId; }
   get weight() { return this.props.weight; }
+  get unit() { return this.props.unit; }
   get date() { return this.props.date; }
   get note() { return this.props.note; }
   get createdAt() { return this.props.createdAt; }

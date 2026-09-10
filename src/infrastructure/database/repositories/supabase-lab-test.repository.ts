@@ -6,6 +6,8 @@ import { labTestListResponseDto, LabTestResponseDto } from '@/src/application/dt
 // Interfaz para los datos en Supabase
 interface SupabaseLabTest {
   id: string;
+  user_id: string | null;
+  pet_id: string | null;
   visit_id: string;
   name: string;
   result: string | null;
@@ -67,6 +69,8 @@ export class SupabaseLabTestRepository implements LabTestRepository {
     }
     return data.map((item: SupabaseLabTest)=>({
       id: item.id,
+      user_id: item.user_id ?? '',
+      pet_id: item.pet_id ?? '',
       visit_id: item.visit_id,
       name: item.name,
       result: item.result ?? undefined,
