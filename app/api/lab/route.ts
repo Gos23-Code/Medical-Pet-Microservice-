@@ -150,6 +150,22 @@ export async function PATCH(req: NextRequest) {
             );
         }
 
+        // ✅ userId y petId son necesarios para la notificación (la tabla
+        // lab_tests no los guarda, así que vienen en el body como en el POST)
+        if (!body.userId) {
+            return NextResponse.json(
+                { error: 'userId es requerido para notificaciones' },
+                { status: 400 }
+            );
+        }
+
+        if (!body.petId) {
+            return NextResponse.json(
+                { error: 'petId es requerido para notificaciones' },
+                { status: 400 }
+            );
+        }
+
         // 1. Obtener el lab test actual desde el repositorio
         const currentLabTest = await repository.findByVisistId(visit_id);
         if (!currentLabTest || currentLabTest.length === 0) {
@@ -166,7 +182,7 @@ export async function PATCH(req: NextRequest) {
         const useCase = new UpdateLabTestResultUseCase(repository);
         const result = await useCase.execute(visit_id, { result: body.result });
 
-        // 3. ✅ PUBLICAR EN PUB/SUB - Usar userId y petId del lab test existente
+        // 3. ✅ PUBLICAR EN PUB/SUB - userId/petId vienen del body
         console.log('📤 Publicando evento LAB_TEST_RESULT_UPDATED...');
         try {
             const normalRange = labTest.normal_range || '';
@@ -176,8 +192,8 @@ export async function PATCH(req: NextRequest) {
 
             await labTestPublisher.publishLabTestResultUpdated({
                 labTestId: labTest.id,
-                petId: labTest.pet_id, // ← Obtener del lab test existente
-                userId: labTest.user_id, // ← Obtener del lab test existente
+                petId: body.petId,
+                userId: body.userId,
                 result: body.result,
                 isNormal: isNormal,
                 normalRange: normalRange || undefined,
