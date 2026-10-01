@@ -17,11 +17,11 @@ export interface VaccineUpdatePayload {
   status?: VaccineStatus | string;
 }
 
-// ✅ Interfaz para el registro de Supabase (SIN user_id)
+// ✅ Interfaz para el registro de Supabase (CON user_id)
 interface VaccineSupabaseRecord {
   id: string;
   pet_id: string;
-  // ❌ user_id: string;  // ELIMINADO
+  user_id: string;
   name: string;
   lot_number: string | null;
   application_date: string;
@@ -60,7 +60,7 @@ export class VaccineRepository implements IVaccineRepository {
 
     const insertData: VaccineInsertRecord = {
       pet_id: vaccineData.petId,
-      // ❌ user_id: vaccineData.userId,  // ELIMINADO - NO ESTÁ EN LA TABLA
+      user_id: vaccineData.userId,
       name: vaccineData.name,
       lot_number: vaccineData.lotNumber,
       application_date: vaccineData.applicationDate.toISOString().split('T')[0],
@@ -323,11 +323,10 @@ export class VaccineRepository implements IVaccineRepository {
 
     const status = statusMap[data.status] || VaccineStatus.PENDING;
 
-    // ✅ userId se pasa como string vacío o null (se obtendrá de la mascota)
     return new Vaccine(
       data.id,
       data.pet_id,
-      '', // ✅ userId vacío - se obtiene de la mascota cuando se necesite
+      data.user_id ?? '',
       name,
       data.lot_number,
       applicationDate,

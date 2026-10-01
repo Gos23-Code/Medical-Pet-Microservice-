@@ -80,12 +80,11 @@ export async function POST(request: NextRequest) {
   }
 }
 
-// GET /api/vaccines?petId={id}&userId={id} - Obtener vacunas por mascota
+// GET /api/vaccines?petId={id} - Obtener vacunas por mascota
 export async function GET(request: NextRequest) {
   try {
     const petId = request.nextUrl.searchParams.get('petId');
-    const userId = request.nextUrl.searchParams.get('userId') || '';  // ✅ Obtener userId (opcional)
-    
+
     if (!petId) {
       return NextResponse.json(
         { error: 'petId es requerido' },
@@ -95,9 +94,9 @@ export async function GET(request: NextRequest) {
 
     const getVaccinesUseCase = new GetVaccinesByPetUseCase(vaccineRepository);
     const vaccines = await getVaccinesUseCase.execute(petId);
-    
-    // ✅ Pasar userId al mapper para cada vacuna
-    const responseDTOs = vaccines.map(vaccine => VaccineMapper.toDTO(vaccine, userId));
+
+    // ✅ userId real de cada vacuna (viene de la BD, ya no del query string)
+    const responseDTOs = vaccines.map(vaccine => VaccineMapper.toDTO(vaccine, vaccine.userId));
     return NextResponse.json(responseDTOs);
     
   } catch (error) {

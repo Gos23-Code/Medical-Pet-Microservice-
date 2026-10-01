@@ -3,11 +3,11 @@ import { Vaccine, CreateVaccineData, UpdateVaccineData, VaccineStatus } from '@/
 import { CreateVaccineDTO, VaccineResponseDTO, UpdateVaccineDTO, VaccineStatusDTO } from '../dtos/vaccine.dto';
 
 export class VaccineMapper {
-  // ✅ toDomain: SIN userId (no se guarda en BD)
+  // ✅ toDomain: CON userId (se guarda en BD)
   static toDomain(dto: CreateVaccineDTO): CreateVaccineData {
     return {
       petId: dto.petId,
-      // ❌ userId: dto.userId,  // NO se guarda en BD
+      userId: dto.userId,
       name: dto.name,
       lotNumber: dto.lotNumber ?? null,
       applicationDate: dto.applicationDate,

@@ -256,10 +256,10 @@ export class Vaccine {
   }
 }
 
-// ✅ CreateVaccineData SIN userId (no se guarda en BD)
+// ✅ CreateVaccineData CON userId (se guarda en BD)
 export interface CreateVaccineData {
   petId: string;
-  // ❌ userId: string;  // ELIMINADO - NO SE GUARDA EN BD
+  userId: string;
   name: string;
   lotNumber: string | null;
   applicationDate: Date;

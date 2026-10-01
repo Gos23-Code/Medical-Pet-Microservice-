@@ -85,6 +85,14 @@ temp/
 *.crt
 
 # ===========================
+# GCP service account keys (nunca deben commitearse)
+# ===========================
+sa.json
+*-sa.json
+service-account*.json
+gcp-key*.json
+
+# ===========================
 # Misc
 # ===========================
 *.swp
