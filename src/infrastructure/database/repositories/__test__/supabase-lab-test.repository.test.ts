@@ -232,7 +232,7 @@ describe('SupabaseLabTestRepository', () => {
     });
   });
 
-  describe('updateResultByVisitId', () => {
+  describe('updateResultById', () => {
     it('should update result successfully', async () => {
       const newResult = '98';
       const expectedResponse = {
@@ -252,14 +252,13 @@ describe('SupabaseLabTestRepository', () => {
         error: null
       });
 
-      const result = await repository.updateResultByVisitId('vis-456', newResult);
+      const result = await repository.updateResultById('vis-456', newResult);
 
       expect(result).toEqual(expectedResponse);
       expect(mockSupabase.from).toHaveBeenCalledWith('lab_tests');
       expect(mockSupabase.update).toHaveBeenCalledWith({ result: newResult });
-      expect(mockSupabase.eq).toHaveBeenCalledWith('visit_id', 'vis-456');
+      expect(mockSupabase.eq).toHaveBeenCalledWith('id', 'vis-456');
       expect(mockSupabase.select).toHaveBeenCalled();
-      expect(mockSupabase.limit).toHaveBeenCalledWith(1);
       expect(mockSupabase.single).toHaveBeenCalled();
     });
 
@@ -269,8 +268,8 @@ describe('SupabaseLabTestRepository', () => {
         error: null
       });
 
-      await expect(repository.updateResultByVisitId('vis-456', '98')).rejects.toThrow(
-        'No se encontró lab test con visit_id: vis-456'
+      await expect(repository.updateResultById('vis-456', '98')).rejects.toThrow(
+        'No se encontró lab test con id: vis-456'
       );
     });
 
@@ -282,7 +281,7 @@ describe('SupabaseLabTestRepository', () => {
         error: { message: errorMessage }
       });
 
-      await expect(repository.updateResultByVisitId('vis-456', '98')).rejects.toThrow(
+      await expect(repository.updateResultById('vis-456', '98')).rejects.toThrow(
         `Error al actualizar resultado:: ${errorMessage}`
       );
     });

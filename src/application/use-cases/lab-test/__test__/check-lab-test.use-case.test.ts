@@ -46,7 +46,7 @@ describe('CheckLabTestIsNormalUseCase', () => {
     mockRepository = {
       save: jest.fn(),
       findByVisistId: jest.fn(),
-      updateResultByVisitId: jest.fn()
+      updateResultById: jest.fn()
     };
     useCase = new CheckLabTestIsNormalUseCase(mockRepository);
   });

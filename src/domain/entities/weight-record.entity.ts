@@ -6,6 +6,9 @@ export interface weightRecordProps {
   unit?: 'kg' | 'lb';
   date?: Date;
   note?: string;
+  /** OWNER = lo registró el dueño desde la app; CLINIC = lo tomó la clínica (MED-02). */
+  source?: 'OWNER' | 'CLINIC';
+  veterinaryId?: string | null;
   createdAt: Date;
 }
 
@@ -32,6 +35,8 @@ export class weightRecord {
   get unit() { return this.props.unit; }
   get date() { return this.props.date; }
   get note() { return this.props.note; }
+  get source() { return this.props.source ?? 'CLINIC'; }
+  get veterinaryId() { return this.props.veterinaryId ?? null; }
   get createdAt() { return this.props.createdAt; }
 
   updateWeight(weight: number): void{

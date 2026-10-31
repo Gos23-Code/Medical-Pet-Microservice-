@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PubSubService } from '../services/pubsub.service';
 import { PUBSUB_TOPICS } from '../constants/pubsub.constants';
+import { EventContext, eventContextPayload, eventMetadata } from './event-context';
 import {
   LabTestCreatedData,
   LabTestUpdatedData,
@@ -15,11 +16,13 @@ export class LabTestPublisher {
 
   constructor(private pubSubService: PubSubService) {}
 
-  async publishLabTestCreated(data: LabTestCreatedData): Promise<PublishResponse> {
+  async publishLabTestCreated(data: LabTestCreatedData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'LAB_TEST_CREATED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         labTestId: data.labTestId,
         petId: data.petId,
         userId: data.userId,
@@ -34,7 +37,7 @@ export class LabTestPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.LAB_TEST,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`✅ Lab test created: ${data.labTestId}`);
@@ -47,11 +50,13 @@ export class LabTestPublisher {
     };
   }
 
-  async publishLabTestUpdated(data: LabTestUpdatedData): Promise<PublishResponse> {
+  async publishLabTestUpdated(data: LabTestUpdatedData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'LAB_TEST_UPDATED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         labTestId: data.labTestId,
         petId: data.petId,
         userId: data.userId,
@@ -64,7 +69,7 @@ export class LabTestPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.LAB_TEST,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`📝 Lab test updated: ${data.labTestId}`);
@@ -77,11 +82,13 @@ export class LabTestPublisher {
     };
   }
 
-  async publishLabTestResultUpdated(data: LabTestResultUpdatedData): Promise<PublishResponse> {
+  async publishLabTestResultUpdated(data: LabTestResultUpdatedData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'LAB_TEST_RESULT_UPDATED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         labTestId: data.labTestId,
         petId: data.petId,
         userId: data.userId,
@@ -96,7 +103,7 @@ export class LabTestPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.LAB_TEST,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`🔬 Lab test result updated: ${data.labTestId}`);
@@ -109,11 +116,13 @@ export class LabTestPublisher {
     };
   }
 
-  async publishLabTestIsNormalChecked(data: LabTestIsNormalCheckedData): Promise<PublishResponse> {
+  async publishLabTestIsNormalChecked(data: LabTestIsNormalCheckedData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'LAB_TEST_IS_NORMAL_CHECKED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         labTestId: data.labTestId,
         petId: data.petId,
         userId: data.userId,
@@ -129,7 +138,7 @@ export class LabTestPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.LAB_TEST,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`✅ Lab test normal check: ${data.labTestId} → ${data.isNormal ? 'NORMAL' : 'ABNORMAL'}`);

@@ -6,15 +6,15 @@ export class UpdateLabTestResultUseCase {
     private readonly labTestRepository: LabTestRepository
   ) {}
 
-  async execute(visit_id: string, dto: UpdateLabTestResultDto): Promise<LabTestResponseDto> {
-    if (!visit_id) {
-      throw new Error('visit_id es requerido');
+  async execute(labTestId: string, dto: UpdateLabTestResultDto): Promise<LabTestResponseDto> {
+    if (!labTestId) {
+      throw new Error('labTestId es requerido');
     }
 
     if (!dto.result) {
       throw new Error('result es requerido');
     }
 
-    return await this.labTestRepository.updateResultByVisitId(visit_id, dto.result);
+    return await this.labTestRepository.updateResultById(labTestId, dto.result);
   }
 }

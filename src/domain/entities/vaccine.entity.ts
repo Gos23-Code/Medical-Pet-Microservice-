@@ -13,7 +13,7 @@ export class Vaccine {
   constructor(
     public readonly id: string,
     public readonly petId: string,
-    public readonly userId: string, // ✅ Se mantiene para lógica de negocio
+    public readonly userId: string | null, // ✅ Se mantiene para lógica de negocio
     public readonly name: VaccineName,
     public readonly lotNumber: string | null,
     public readonly applicationDate: Date,
@@ -31,7 +31,7 @@ export class Vaccine {
   static create(
     id: string,
     petId: string,
-    userId: string,
+    userId: string | null,
     name: string,
     lotNumber: string | null | undefined,
     applicationDate: Date,
@@ -259,13 +259,17 @@ export class Vaccine {
 // ✅ CreateVaccineData CON userId (se guarda en BD)
 export interface CreateVaccineData {
   petId: string;
-  userId: string;
+  /** Dueño de la mascota (user_id). Null si el dueño aún no tiene cuenta. */
+  userId: string | null;
   name: string;
   lotNumber: string | null;
   applicationDate: Date;
   nextDoseDate: Date | null;
   veterinarian: string | null;
   notes: string | null;
+  manufacturer?: string | null;
+  veterinaryId?: string | null;
+  appliedByEmployeeId?: string | null;
 }
 
 export type UpdateVaccineData = Partial<CreateVaccineData>;

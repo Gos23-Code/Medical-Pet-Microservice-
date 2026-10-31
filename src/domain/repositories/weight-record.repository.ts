@@ -9,6 +9,6 @@ export interface weightRecordRepository {
   save(record: weightRecord): Promise<WeightRecordResponseDto>;
   findAll(): Promise <WeightRecordListResponseDto[]>;
   findByPetId(petId: string): Promise<WeightRecordByPetIdResponseDto[]>;
-  getLatestByPetId(petId: string): Promise<WeightRecordLatestResponseDto>;
+  getLatestByPetId(petId: string): Promise<WeightRecordLatestResponseDto | null>;
   updateWeightByPetId(petId: string, weight: number): Promise<WeightRecordResponseDto>;
 }

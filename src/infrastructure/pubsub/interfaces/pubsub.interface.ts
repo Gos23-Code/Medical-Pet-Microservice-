@@ -35,7 +35,7 @@ export type PubSubEvent =
 export interface LabTestCreatedData {
   labTestId: string;
   petId: string;
-  userId: string;  // ✅ YA TIENE
+  userId: string | null;  // ✅ YA TIENE
   testType: string;
   results: Record<string, unknown>;
   veterinarian: string;
@@ -44,7 +44,7 @@ export interface LabTestCreatedData {
 export interface LabTestResultUpdatedData {
   labTestId: string;
   petId: string;
-  userId: string;  // ✅ AGREGADO
+  userId: string | null;  // ✅ AGREGADO
   result: string;
   isNormal: boolean;
   normalRange?: string;
@@ -54,7 +54,7 @@ export interface LabTestResultUpdatedData {
 export interface LabTestIsNormalCheckedData {
   labTestId: string;
   petId: string;
-  userId: string;  // ✅ AGREGADO
+  userId: string | null;  // ✅ AGREGADO
   name: string;
   result: string;
   normalRange: string;
@@ -65,7 +65,7 @@ export interface LabTestIsNormalCheckedData {
 export interface LabTestUpdatedData {
   labTestId: string;
   petId: string;
-  userId: string;  // ✅ AGREGADO
+  userId: string | null;  // ✅ AGREGADO
   updates: Partial<LabTestCreatedData>;
   updatedAt: string;
 }
@@ -76,7 +76,7 @@ export interface MedicationAddedData {
   medicationId: string;
   treatmentId: string;
   petId: string;
-  userId: string;
+  userId: string | null;
   name: string;
   dosage: string;
   frequency: string;
@@ -87,7 +87,7 @@ export interface MedicationAddedData {
 export interface MedicationPrescribedData {
   medicationId: string;
   petId: string;
-  userId: string;  // ✅ YA TIENE
+  userId: string | null;  // ✅ YA TIENE
   name: string;
   dosage: string;
   frequency: string;
@@ -98,7 +98,7 @@ export interface MedicationPrescribedData {
 export interface MedicationAdministeredData {
   medicationId: string;
   petId: string;
-  userId: string;  // ✅ AGREGADO
+  userId: string | null;  // ✅ AGREGADO
   administeredBy: string;
   administeredAt: string;
   notes?: string;
@@ -109,7 +109,7 @@ export interface MedicationUpdatedData {
   treatmentId: string;
   treatmentName: string;
   petId: string;
-  userId: string;
+  userId: string | null;
   name: string;
   oldDosage: string;
   newDosage: string;
@@ -123,7 +123,7 @@ export interface MedicationUpdatedData {
 export interface SurgeryScheduledData {
   surgeryId: string;
   petId: string;
-  userId: string;  // ✅ YA TIENE
+  userId: string | null;  // ✅ YA TIENE
   type: string;
   scheduledDate: string;
   veterinarian: string;
@@ -132,7 +132,7 @@ export interface SurgeryScheduledData {
 export interface SurgeryCompletedData {
   surgeryId: string;
   petId: string;
-  userId: string;  // ✅ AGREGADO
+  userId: string | null;  // ✅ AGREGADO
   outcome: string;
   notes: string;
   completedAt: string;
@@ -142,7 +142,7 @@ export interface SurgeryCompletedData {
 export interface TreatmentStartedData {
   treatmentId: string;
   petId: string;
-  userId: string;  // ✅ YA TIENE
+  userId: string | null;  // ✅ YA TIENE
   type: string;
   protocol: string;
   startedAt: string;
@@ -151,7 +151,7 @@ export interface TreatmentStartedData {
 export interface TreatmentUpdatedData {
   treatmentId: string;
   petId: string;
-  userId: string;  // ✅ AGREGADO
+  userId: string | null;  // ✅ AGREGADO
   progress: number;
   status: string;
   updatedAt: string;
@@ -160,7 +160,7 @@ export interface TreatmentUpdatedData {
 export interface TreatmentCompletedData {
   treatmentId: string;
   petId: string;
-  userId: string;  // ✅ AGREGADO
+  userId: string | null;  // ✅ AGREGADO
   outcome: string;
   completedAt: string;
 }
@@ -169,7 +169,7 @@ export interface TreatmentCompletedData {
 export interface VaccineAppliedData {
   vaccineId: string;
   petId: string;
-  userId: string;  // ✅ YA TIENE
+  userId: string | null;  // ✅ YA TIENE
   name: string;
   batch: string;
   applicationDate: string;
@@ -179,7 +179,7 @@ export interface VaccineAppliedData {
 
 export interface VaccineDueReminderData {
   petId: string;
-  userId: string;  // ✅ YA TIENE
+  userId: string | null;  // ✅ YA TIENE
   vaccineName: string;
   dueDate: string;
   reminderSentAt: string;
@@ -189,7 +189,7 @@ export interface VaccineDueReminderData {
 export interface VaccineUpdatedData {
   vaccineId: string;
   petId: string;
-  userId: string;
+  userId: string | null;
   name: string;
   oldStatus?: string;
   newStatus?: string;
@@ -201,7 +201,7 @@ export interface VaccineUpdatedData {
 export interface VisitScheduledData {
   visitId: string;
   petId: string;
-  userId: string;  // ✅ YA TIENE
+  userId: string | null;  // ✅ YA TIENE
   scheduledDate: string;
   reason: string;
   veterinarian: string;
@@ -210,7 +210,7 @@ export interface VisitScheduledData {
 export interface VisitCompletedData {
   visitId: string;
   petId: string;
-  userId: string;  // ✅ AGREGADO
+  userId: string | null;  // ✅ AGREGADO
   diagnosis: string;
   prescriptions: string[];
   notes: string;
@@ -220,7 +220,7 @@ export interface VisitCompletedData {
 export interface VisitDueReminderData {
   visitId: string;
   petId: string;
-  userId: string;
+  userId: string | null;
   scheduledDate: string;
   reason: string;
   veterinarian: string;
@@ -230,7 +230,7 @@ export interface VisitDueReminderData {
 export interface VisitOverdueReminderData {
   visitId: string;
   petId: string;
-  userId: string;
+  userId: string | null;
   scheduledDate: string;
   reason: string;
   veterinarian: string;
@@ -241,7 +241,7 @@ export interface VisitOverdueReminderData {
 export interface WeightRecordedData {
   weightId: string;
   petId: string;
-  userId: string;  // ✅ YA TIENE
+  userId: string | null;  // ✅ YA TIENE
   weight: number;
   unit: 'kg' | 'lb';
   recordedAt: string;
@@ -250,7 +250,7 @@ export interface WeightRecordedData {
 
 export interface WeightAlertData {
   petId: string;
-  userId: string;  // ✅ YA TIENE
+  userId: string | null;  // ✅ YA TIENE
   currentWeight: number;
   previousWeight: number;
   percentageChange: number;
@@ -261,7 +261,7 @@ export interface WeightAlertData {
 export interface WeightUpdatedData {
   weightId: string;
   petId: string;
-  userId: string;
+  userId: string | null;
   oldWeight: number;
   newWeight: number;
   unit: string;
@@ -307,6 +307,36 @@ export interface PubSubMessage<K extends PubSubEvent = PubSubEvent> {
   data: PubSubEventMap[K];
   timestamp: string;
   metadata?: Record<string, string | number | boolean>;
+}
+
+// ============================================
+// 🔥 SOBRE COMÚN (CONTRATOS_COMPARTIDOS.md §4.1)
+// ============================================
+export interface EventRecipient {
+  email?: string | null;
+  phone?: string | null;
+  name?: string | null;
+}
+
+export interface DomainEventInput {
+  eventType: string;
+  /** Destinatario de la notificación. Null si el dueño no tiene cuenta. */
+  userId: string | null;
+  /** Contacto directo. Obligatorio cuando userId es null. */
+  recipient?: EventRecipient | null;
+  payload: Record<string, unknown>;
+  occurredAt?: string;
+}
+
+export type DomainEventMetadata = Record<string, string | number | boolean | null>;
+
+export interface DomainEventEnvelope {
+  eventType: string;
+  userId: string | null;
+  recipient: EventRecipient | null;
+  payload: Record<string, unknown>;
+  occurredAt: string;
+  metadata: DomainEventMetadata;
 }
 
 // ============================================

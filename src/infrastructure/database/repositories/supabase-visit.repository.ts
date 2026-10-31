@@ -3,6 +3,7 @@ import { VeterinaryVisit, VisitStatus } from '@/src/domain/entities/veterinary-v
 import { VeterinaryVisitRepository } from '@/src/domain/repositories/veterinary-visit.repository';
 import { Weight } from '@/src/domain/value-objects/weight.vo';
 import { Temperature } from '@/src/domain/value-objects/temperature.vo';
+import { todayInTimeZone } from '@/src/shared/business-date';
 
 interface SupabaseVisitRecord {
   id: string;
@@ -248,8 +249,8 @@ export class SupabaseVisitRepository implements VeterinaryVisitRepository {
 
   // ✅ NUEVO: Marcar TODAS las visitas SCHEDULED con fecha PASADA como OVERDUE
   async markScheduledAsOverdue(petId: string): Promise<void> {
-    const today = new Date().toISOString().split('T')[0];
-    
+    const today = todayInTimeZone();
+
     console.log(`🔄 Marcando visitas SCHEDULED con fecha < ${today} como OVERDUE...`);
 
     const { error } = await this.supabase

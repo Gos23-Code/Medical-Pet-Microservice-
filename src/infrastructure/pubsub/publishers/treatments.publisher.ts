@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PubSubService } from '../services/pubsub.service';
 import { PUBSUB_TOPICS } from '../constants/pubsub.constants';
+import { EventRecipient } from '../interfaces/pubsub.interface';
+import { EventContext, eventContextPayload, eventMetadata } from './event-context';
 import {
   TreatmentStartedData,
   TreatmentUpdatedData,
@@ -14,11 +16,13 @@ export class TreatmentsPublisher {
 
   constructor(private pubSubService: PubSubService) {}
 
-  async publishTreatmentStarted(data: TreatmentStartedData): Promise<PublishResponse> {
+  async publishTreatmentStarted(data: TreatmentStartedData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'TREATMENT_STARTED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         treatmentId: data.treatmentId,
         petId: data.petId,
         userId: data.userId,
@@ -32,7 +36,7 @@ export class TreatmentsPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.TREATMENTS,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`🩺 Treatment started: ${data.treatmentId}`);
@@ -45,11 +49,13 @@ export class TreatmentsPublisher {
     };
   }
 
-  async publishTreatmentUpdated(data: TreatmentUpdatedData): Promise<PublishResponse> {
+  async publishTreatmentUpdated(data: TreatmentUpdatedData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'TREATMENT_UPDATED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         treatmentId: data.treatmentId,
         petId: data.petId,
         userId: data.userId,
@@ -63,7 +69,7 @@ export class TreatmentsPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.TREATMENTS,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`📝 Treatment updated: ${data.treatmentId} → ${data.progress}%`);
@@ -76,11 +82,13 @@ export class TreatmentsPublisher {
     };
   }
 
-  async publishTreatmentCompleted(data: TreatmentCompletedData): Promise<PublishResponse> {
+  async publishTreatmentCompleted(data: TreatmentCompletedData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'TREATMENT_COMPLETED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         treatmentId: data.treatmentId,
         petId: data.petId,
         userId: data.userId,
@@ -93,7 +101,7 @@ export class TreatmentsPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.TREATMENTS,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`✅ Treatment completed: ${data.treatmentId}`);
@@ -113,7 +121,13 @@ export class TreatmentsPublisher {
     treatmentId: string;
     treatmentName: string;
     petId: string;
-    userId: string;
+    userId: string | null;
+
+    recipient?: EventRecipient | null;
+
+    veterinaryId?: string | null;
+
+    veterinaryName?: string | null;
     medicationId: string;
     name: string;
     dosage: string;
@@ -123,8 +137,10 @@ export class TreatmentsPublisher {
   }): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'MEDICATION_ADDED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         treatmentId: data.treatmentId,
         treatmentName: data.treatmentName,
         petId: data.petId,
@@ -142,7 +158,7 @@ export class TreatmentsPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.TREATMENTS,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`💊 Medication added: ${data.medicationId} - ${data.name}`);

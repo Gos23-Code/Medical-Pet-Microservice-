@@ -1,11 +1,11 @@
 // src/infrastructure/repositories/supabase/client.ts
 import { createClient } from '@supabase/supabase-js';
+import { serverSupabaseKey } from './server-key';
 
 // Cliente de Supabase
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, serverSupabaseKey());
 
 // Tipos para la base de datos (opcional pero recomendado)
 export type Database = {

@@ -4,6 +4,8 @@ API REST del núcleo clínico de la plataforma **Medical Pet**: historiales vete
 
 Esta guía es la fuente de verdad para trabajar en el repo (humanos y agentes). `CLAUDE.md` solo apunta aquí (`@AGENTS.md`).
 
+> **Regla de mantenimiento:** cada cambio en el repo (código, migración, variable de entorno, contrato, decisión) se refleja en esta guía **en el mismo cambio**, no después. Si un cambio contradice lo escrito aquí, se corrige esta guía antes de dar la tarea por terminada.
+
 ## 1. Stack
 
 | Capa | Tecnología |
@@ -14,7 +16,8 @@ Esta guía es la fuente de verdad para trabajar en el repo (humanos y agentes). 
 | Base de datos | Supabase (Postgres) vía `@supabase/supabase-js` / `@supabase/ssr` |
 | Mensajería | Google Cloud Pub/Sub (`@google-cloud/pubsub`) |
 | DI/decoradores | `@nestjs/common` + `@nestjs/config` usados de forma puntual (clases `@Injectable()` instanciadas a mano con factories, **no** hay una app Nest real corriendo) |
-| Testing | Jest 30 + ts-jest, 49 archivos de test |
+| Auth | JWT RS256 validado con `jose` contra el JWKS del User service (`src/infrastructure/auth/`) |
+| Testing | Jest 30 + ts-jest, 57 suites / 443 tests (`npm test`) |
 | Contenedor | Docker multi-stage (`node:22-alpine`), salida `standalone` de Next.js |
 | Despliegue objetivo | Google Cloud Run |
 
@@ -47,6 +50,18 @@ Las rutas de `app/api/**/route.ts` son el único punto que conoce tanto los use-
 
 Existen `src/infrastructure/pubsub/subscribers/*.subscriber.ts` y un `pubsub.module.ts` que los registra, pero **nadie los importa** (`grep` no encuentra referencias fuera del propio módulo). Es código muerto/plantilla: este backend nunca consume sus propios eventos. El consumo real ocurre en el repo hermano **`notification-microservice-pubsub`**, que corre por separado (su propia base de Supabase, su propio `.env.local`) y se suscribe a las mismas suscripciones (`sub-notificaciones-*`). No asumas que estos subscribers hacen algo en producción.
 
+### 2.2 Un servicio, dos tipos de actor ("2 en 1")
+
+Medical atiende a **dos tipos de usuario con el mismo endpoint**: el dueño de la mascota (token `ctx = USER`) y la clínica (token `ctx = VETERINARY`). Un mismo body sirve a los dos; lo que cambia es quién queda como autor y qué puede hacer.
+
+- **Body común:** los campos base (`petId`, `reason`, `weight`…) son obligatorios para cualquiera.
+- **Campos de clínica:** `veterinarian`, `appointmentId`, `diagnosis`, `notes`… son **opcionales** y solo los usa un token de clínica. Un dueño que los envía no recibe error por ellos; sencillamente no se usan.
+- **Identidad desde el token:** `userId` sale de `sub`, nunca del body. `veterinaryId` y el empleado salen de `vet_id`/`employee_id`. Un body con `userId` o `veterinaryId` se ignora.
+- **Autorización** (`src/infrastructure/auth/clinical-access.ts` → `authorizePet`): dueño y clínica leen (`CLINICAL_READ`, `CLINICAL_READ_BASIC`) y escriben historia (`CLINICAL_WRITE`, `NURSING_WRITE`, `WEIGHT_WRITE`). El dueño solo sobre sus propias mascotas (Pets). La clínica según el permiso de Veterinary. Los documentos son exclusivos de la clínica (`DOCUMENT_READ`, `DOCUMENT_WRITE`).
+- **Quién decide:** la clínica pregunta a Veterinary (`GET /internal/veterinaries/{v}/patients/{p}/access`, caché 60 s). El dueño pregunta a Pets (`GET /internal/pets/{p}/owner/{u}`, caché 60 s). Si uno de los dos no responde → **503**, nunca "pasa".
+- **Errores:** formato del contrato `{ timestamp, status, error, message, code }` (ver `src/infrastructure/http/api-error.ts`). Los errores de las rutas que no se tocaron siguen con su forma anterior (`{ success, message }` o `{ error }`, decisión D7 pendiente).
+- Detalle de cada body y ejemplo por endpoint: **`MEDICAL_ENDPOINTS_Y_BODIES.md`** (referencia única, ordenada por módulo; reemplaza a `MEDICAL_API_BODIES.md` donde difieran).
+
 ## 3. Estructura de carpetas
 
 ```
@@ -54,7 +69,29 @@ app/api/                     Route handlers (Next.js App Router)
   cron/{vaccine,visit}-reminders/route.ts    Endpoints para cron jobs (Cloud Scheduler)
   lab/, medications/, surgery/, treatments/, vaccines/, visits/, weight/
 
+db/scripts/                  Migraciones SQL manuales (se aplican a mano en Supabase, en orden)
+  001_authorship_columns.sql   Columnas de autoría clínica (MED-02 parcial)
+  002_clinical_access_and_audit.sql   appointment_id, lab_tests (pet/clínica), manufacturer, clinical_audit_log (MED-02/04/05)
+  003_alinear_esquema_con_codigo.sql  Esquema completo que usa el código (CREATE IF NOT EXISTS + columnas faltantes). Ejecutar después de 001 y 002, o sola en una base vacía
+  004_alinear_tablas_con_mockup.sql   Incremental, después de 003. Alinea las 7 tablas con el mockup de historia clínica (Consultas, Cirugías, Tratamientos, Medicación, Laboratorio, Vacunas, Peso) y crea `lab_test_results` (parámetros del examen) y `clinical_documents` (Documentos)
+
+postman/
+  Medical-Pet-Backend.postman_collection.json   83 requests en 17 carpetas: D* = dueño (campos base), V* = veterinaria (base + extra). Tests y casos NEGATIVO
+  Medical-Pet-Backend.postman_environment.json  Variables locales (tokens, IDs de prueba). Importar junto con la colección
+
+scripts/dev-auth/            Servicios simulados para probar en LOCAL (JWKS + Pets + Veterinary + tokens). No es para producción.
+  stub-services.mjs          node scripts/dev-auth/stub-services.mjs → imprime tokens de dueño y de clínica
+
 src/
+  application/
+    clinical/                 Campos del mockup: field-spec.ts (parseFields/toResponse), clinical-specs.ts (campos nuevos por módulo),
+                              vaccine-status.ts (Vigente/Por vencer/Vencida/Anterior), lab-results.ts (parámetros del examen)
+    use-cases/documents/      MÓDULO DOCUMENTOS (exclusivo de la veterinaria): upload, listar, leer (URL firmada), borrar; reglas en document-rules.ts
+    mappers/clinical-document.mapper.ts   forma de un documento en la respuesta (sin storagePath)
+    visits/visit-clinical-fields.ts       validación de los campos clínicos de la visita
+  shared/
+    business-date.ts          todayInTimeZone(): "hoy" en la zona de la clínica (default America/Bogota)
+    __test__/                 Tests de shared
   domain/
     entities/                 Entidades ricas (create / reconstitute / invariantes)
     value-objects/             VOs con validación en el constructor
@@ -66,7 +103,16 @@ src/
     mappers/                   DTO ↔ entidad
     service/                   Servicios de dominio sin estado (ej. TreatmentProgressService)
   infrastructure/
+    auth/                     MED-01/MED-03: actor.ts (claims → Actor), jwt.ts (authenticate), with-auth.ts (withAuth para route handlers),
+                              clinical-access.ts (authorizePet, assertClinicPath), clinic-read.ts (lectura por clínica), internal-key.ts (X-Internal-Api-Key)
+    clients/                  HTTP a otros servicios con timeout 3 s → 503: pets.client.ts, veterinary.client.ts, internal-http.ts, ttl-cache.ts (caché 60 s)
+    clinical/event-target.ts  MED-06: resuelve dueño y contacto de la mascota (vía Pets) para cada evento
+    database/clinical-extras.ts   saveExtras / loadExtras: escribe y lee columnas nuevas del mockup sobre filas que crean los casos de uso originales
+    database/repositories/supabase-lab-test-result.repository.ts   parámetros del examen (lab_test_results)
+    storage/supabase-document-storage.ts   bucket privado clinical-documents, URL firmada de 10 min
+    http/api-error.ts         Errores con el formato del contrato y toErrorResponse()
     database/
+      pet-lookup.ts           Mascota de un registro (visita, vacuna, tratamiento, medicación, cirugía, lab) sin leer tablas de Pets
       supabase/client.ts       Cliente browser (createBrowserClient) — usado por los repos "nuevos"
       supabase/client-surgery.ts  Cliente server (createClient) — solo pet-surgery
       repositories/supabase-*.repository.ts   Implementación real de cada puerto
@@ -74,8 +120,9 @@ src/
     pubsub/
       constants/                Nombres de topics y suscripciones
       interfaces/                Catálogo de eventos y sus payloads (PubSubEventMap)
-      services/pubsub.service.ts  Wrapper sobre @google-cloud/pubsub
+      services/pubsub.service.ts  Wrapper sobre @google-cloud/pubsub + validación y armado del sobre §4.1
       publishers/*.publisher.ts   Un publisher por dominio
+      __test__/                   Tests del sobre de eventos (pubsub-envelope.test.ts)
       subscribers/*.subscriber.ts Código muerto (ver §2.1)
       pubsub.factory.ts          Factories `createXPublisher()` usadas por las rutas
 ```
@@ -89,7 +136,7 @@ src/
 | Medicación en tratamiento | `MedicacionTreatment`* | — | `supabase-medication-treatment.repository.ts` | agregar medicación a un tratamiento |
 | Medicación | `Medication` | — | `supabase-medication.repository.ts` | actualizar dosis/frecuencia |
 | Cirugías | `PetSurgery` | `pet_surgeries` (FK → `veterinary_visits.id`) | `supabase-pet-surgery.repository.ts` | crear, buscar por id/pet/visita, actualizar, eliminar |
-| Vacunas | `Vaccine` | `vaccines` (**con** `user_id`, ver §6) | `supabase-vaccine.repository.ts` | aplicar, chequear vencimiento, recordatorios, `getUserIdByPetId` |
+| Vacunas | `Vaccine` | `vaccines` (**con** `user_id`, ver §6) | `supabase-vaccine.repository.ts` | aplicar, chequear vencimiento, recordatorios |
 | Laboratorios | `LabTest` | `lab_tests` (**sin** `user_id`/`pet_id`, solo `visit_id`) | `supabase-lab-test.repository.ts` | crear, obtener por visita, chequear normalidad, actualizar resultado |
 | Peso | `weightRecord`** | `WeightRecord` (columnas PascalCase: `PetId`, `Weight`, `Date`, `Note`, `Created_at` — **sin** `UserId`/`Unit`) | `supabase-weight-record.repository.ts` | crear, listar, por pet, último, actualizar |
 
@@ -100,8 +147,8 @@ src/
 
 | Método | Ruta | Descripción |
 |---|---|---|
-| GET, POST | `/api/cron/vaccine-reminders` | Recordatorios de vacunas (GET = prueba sin `userId`, POST = con `userId` para notificar) |
-| GET, POST | `/api/cron/visit-reminders` | Recordatorios de visitas |
+| GET, POST | `/api/cron/vaccine-reminders` | **Solo `X-Internal-Api-Key`.** GET = prueba con `petId`; POST = recordatorio con `petId` (el dueño sale de Pets) |
+| GET, POST | `/api/cron/visit-reminders` | **Solo `X-Internal-Api-Key`.** Igual que vacunas |
 | GET, POST, PATCH | `/api/lab` | Listar/chequear por `visit_id`, crear, actualizar resultado |
 | GET, PUT | `/api/medications/[id]` | Obtener / actualizar dosis-frecuencia |
 | GET, POST | `/api/surgery` | Listar, crear |
@@ -117,9 +164,22 @@ src/
 | POST | `/api/visits` | Crear visita |
 | GET, PUT | `/api/visits/[id]` | Obtener / actualizar |
 | GET | `/api/visits/[id]/treatment`, `/api/visits/date-range`, `/api/visits/pet/[petId]` | Consultas |
-| GET, POST, PATCH | `/api/weight` | Listar/último, crear, actualizar |
+| GET, POST, PATCH | `/api/weight` | Peso. GET y PATCH con `?petId=` (GET sin `petId` ya no lista todo: 400). POST con el mismo body para dueño y clínica |
+| GET | `/api/visits/veterinary/[veterinaryId]?from=&to=` | **MED-07.** Visitas de una clínica. `veterinaryId` debe ser el del token (403 `TENANT_MISMATCH`) |
+| GET, POST | `/api/documents` | **Exclusivo de la veterinaria.** `GET ?petId=` lista; `POST` multipart (`file`, `petId`, `documentType`, `title`; opcionales `visitId`, `surgeryId`, `labTestId`). PDF/JPG/PNG, máx. 10 MB. Dueño → 403 |
+| GET, DELETE | `/api/documents/[id]` | **Exclusivo de la veterinaria.** `GET` devuelve metadatos y URL firmada de 10 min. `DELETE` solo lo puede hacer la clínica que lo subió |
+| GET | `/api/pets/[petId]/clinical-summary` | **MED-07.** Resumen para recepción y IA: vacunas (vigente/vencida), tratamientos activos, último peso. `allergies` es `null` (no disponible en Medical, D9) |
 
-Todas las rutas devuelven JSON (`{ success, data }` o `{ error }` según el endpoint — no hay un formato de respuesta unificado, revisa la ruta puntual antes de asumir shape).
+Autenticación por ruta (MED-01/MED-03): todas exigen `Authorization: Bearer <token>` salvo `/api/cron/**` (exige `X-Internal-Api-Key`). Quién puede qué está en §2.2.
+
+Cambios de comportamiento de esta versión (rompen clientes antiguos):
+- `userId` ya no viene en el body de ninguna ruta. Sale del token (`sub`), y para notificaciones, del dueño resuelto en Pets.
+- Escritura de historia: el dueño (de su mascota) usa el body base de cada endpoint; los campos extra del mockup solo los guarda la veterinaria (`src/application/clinical/clinic-only.ts`, `parseClinicExtras`). `source` del registro sale del token (`OWNER` o `CLINIC`).
+- `POST /api/treatments` y `POST /api/lab`: la mascota sale de la visita (`visitId` / `visit_id`); `petId` del body ya no se usa para autorizar.
+- `GET /api/visits/date-range`: solo clínica; filtra por la clínica del token (un dueño no puede listar visitas de otras mascotas).
+- `DELETE /api/surgery/[id]`: solo la clínica que creó la cirugía.
+
+Respuestas: las rutas tocadas devuelven los errores de autorización con el formato del contrato (`{ timestamp, status, error, message, code }`); el resto conserva su forma anterior (`{ success, data }` o `{ error }`, ver D7 en §10).
 
 ## 6. Persistencia — Supabase
 
@@ -128,7 +188,19 @@ Todas las rutas devuelven JSON (`{ success, data }` o `{ error }` según el endp
 - `src/infrastructure/database/supabase/client-surgery.ts` — cliente aparte con `createClient` (server) + tipos `Database` manuales, solo para `pet_surgeries`. Legado de cuando cada módulo tenía su propio cliente; no lo generalices.
 - FKs reales a tener en cuenta: `treatments.visit_id → veterinary_visits.id`, `pet_surgeries.veterinary_visit_id → veterinary_visits.id`. Un `POST` con un id que no existe en la tabla referenciada falla con `23503 foreign_key_violation` (Postgres), no con un 400 propio — el mensaje ya es descriptivo, no lo enmascares.
 - Convención de nombres de columnas **inconsistente entre tablas**: `veterinary_visits`/`lab_tests`/`pet_surgeries` usan `snake_case`; `WeightRecord` usa `PascalCase` (`PetId`, `Weight`, `Created_at`). Revisa la tabla real antes de escribir un `.select()`/`.insert()` nuevo.
-- `vaccines.user_id` (uuid, nullable): se agregó en esta sesión como el **patrón de referencia** para persistir `userId` de verdad en vez de pasarlo solo por el body/evento. `CreateVaccineData.userId` → `VaccineMapper.toDomain` → `insertData.user_id` en `supabase-vaccine.repository.ts` → `mapToVaccine` lo lee de vuelta (`data.user_id ?? ''`) en vez de devolver `''` fijo. El `GET /api/vaccines?petId=` ya no toma `userId` de un query string opcional — usa el de cada fila. Filas creadas antes de la columna quedan con `user_id = null` → se pueden rellenar con `update vaccines v set user_id = p.user_id from pets p where v.pet_id = p.id and v.user_id is null;`. Si `weight-record` o `lab_tests` necesitan lo mismo algún día, replica este patrón en vez de reinventar uno.
+- `vaccines.user_id` (uuid, nullable): se agregó en esta sesión como el **patrón de referencia** para persistir `userId` de verdad en vez de pasarlo solo por el body/evento. `CreateVaccineData.userId` → `VaccineMapper.toDomain` → `insertData.user_id` en `supabase-vaccine.repository.ts` → `mapToVaccine` lo lee de vuelta (`data.user_id ?? ''`) en vez de devolver `''` fijo. El `GET /api/vaccines?petId=` ya no toma `userId` de un query string opcional — usa el de cada fila. Filas creadas antes de la columna quedan con `user_id = null`. **No hay backfill por SQL**: la tabla `pets` vive en la base de datos del servicio Pets, no en la de Medical, así que el dueño de una mascota no se puede resolver desde aquí. Esas filas se rellenan cuando exista la fuente correcta (ver D2/D3 del plan de autorización). Si `weight-record` o `lab_tests` necesitan lo mismo algún día, replica este patrón en vez de reinventar uno.
+
+**Autoría y auditoría (MED-02, MED-05, migración `002`):**
+- Toda escritura de la clínica guarda `veterinary_id` y el empleado (`attended_by_employee_id`, `surgeon_employee_id`, `applied_by_employee_id`) y el usuario (`created_by_user_id`/`attended_by_user_id`) **desde el token**.
+- Peso: `WeightRecord."Source"` (`OWNER` | `CLINIC`) y `"VeterinaryId"`. Lo fija `authorizePet`.
+- Visitas: `appointment_id` tiene índice único parcial: una cita atendida produce como máximo una visita (409 `APPOINTMENT_ALREADY_ATTENDED`).
+- Visitas, campos de "Registrar visita" (diseño 13 oct): `heart_rate`, `respiratory_rate`, `mucous_membranes` (enum), `body_condition_score` (1 a 9), `anamnesis`, `physical_exam`, `plan`, además de `weight`, `temperature`, `diagnosis`, `notes`. Todos opcionales. La validación vive en `src/application/visits/visit-clinical-fields.ts` y la forma de respuesta en `src/application/mappers/visit-response.mapper.ts`; todas las rutas de visitas usan ese mapper.
+- `clinical_audit_log`: cada CREATE/UPDATE/DELETE de escritura clínica queda con actor, clínica y `changes` (antes/después de lo que cambió). Lo escribe `SupabaseClinicalAuditRepository` desde la ruta. **Limitación:** supabase-js no tiene transacciones: si la auditoría falla, la escritura ya ocurrió y el error solo se loguea.
+- Las rutas que escriben en dos pasos (autoría después del insert en `pet_surgeries` y `lab_tests`) hacen un `update` posterior. Si ese update falla, la fila queda sin autoría y el DELETE de cirugías no encontrará a la clínica creadora: revisar el log antes de confiar en el borrado.
+- `lab_tests.pet_id` ahora existe (002). Los exámenes viejos quedan con `pet_id = null` y se resuelven por la visita (`petIdOfLabTest`).
+- `vaccines.user_id` es el dueño **resuelto en Pets** (puede ser `null` si la mascota aún no tiene dueño con cuenta). Una vacuna no se registra si no se puede resolver el dueño (503): la notificación es parte del flujo.
+
+**Regla de bases de datos:** cada servicio tiene su propia BD. Medical **no** debe leer tablas de Pets (ni `pets`, ni ninguna otra); los datos de mascota y de dueño se piden por HTTP al servicio correspondiente o llegan en el request/token. Las relaciones entre servicios se resuelven en el frontend por IDs, no por joins de BD.
 
 ## 7. Mensajería — Google Cloud Pub/Sub
 
@@ -148,13 +220,22 @@ El shape exacto de cada payload está tipado en `src/infrastructure/pubsub/inter
 
 ### 7.2 Cómo se publica
 
-`route.ts` → `createXPublisher()` (factory, singleton de `PubSubService`) → `publisher.publishY(data)` → `pubSubService.publishDomainEvent(topic, { eventType, userId, payload })`. El mensaje final en el topic es:
+`route.ts` → `createXPublisher()` (factory, singleton de `PubSubService`) → `publisher.publishY(data)` → `pubSubService.publishDomainEvent(topic, { eventType, userId, recipient?, payload, occurredAt })`. El mensaje final en el topic es el sobre común de `CONTRATOS_COMPARTIDOS.md` §4.1 (documento compartido entre los 7 repos; copia en `docs/` pendiente):
 
 ```json
-{ "eventType": "WEIGHT_RECORDED", "userId": "...", "payload": { ... }, "occurredAt": "ISO", "metadata": { "version": "1.0", "source": "medical-pet-backend" } }
+{ "eventType": "WEIGHT_RECORDED", "userId": "...", "recipient": null, "payload": { ... }, "occurredAt": "ISO", "metadata": { "version": "1.0", "source": "medical-pet-backend", "veterinaryId": null, "correlationId": "uuid" } }
 ```
 
-**Regla de oro:** `userId` y `petId` para notificaciones deben salir del **body de la request** cuando el recurso no los persiste. Ejemplo real corregido: `PATCH /api/lab` sacaba `userId`/`petId` de `repository.findByVisistId()`, pero `lab_tests` no tiene esas columnas → llegaban vacíos y el suscriptor descartaba el evento (`evento sin userId, se descarta`). Fix: leerlos del `body` como hace `POST /api/lab`. Antes de cablear un publish nuevo, verifica que el dato exista de verdad en la fuente que estás usando (¿DB o body?).
+Reglas aplicadas en `PubSubService` (`assertHasRecipient` / `buildDomainEventEnvelope`):
+- Sin `userId` ni `recipient.email`/`recipient.phone` el evento **no se publica** (lanza error, la ruta lo loguea).
+- Cada evento recibe un `correlationId` nuevo salvo que el publisher lo pase.
+- `metadata.veterinaryId` es `null` por defecto; pasarlo cuando el actor sea una clínica.
+
+**Regla de oro (MED-06):** el **destinatario** de un evento de historia es el **dueño de la mascota**, y lo resuelve Pets (`resolveEventTarget(petId, …)` → `POST /internal/pets/batch`). Nunca sale del body: un body podría notificar a un tercero. Si el dueño no tiene cuenta (`claimStatus = UNCLAIMED`), `userId = null` y `recipient` lleva el contacto que devuelve Pets (contrato §4.1, regla 1). Si Pets no responde, el evento se omite con log y la respuesta HTTP sigue siendo exitosa.
+
+Todo evento de la clínica lleva en `payload` `veterinaryId` y `veterinaryName` (el nombre sale de Veterinary, opcional) y en `metadata.veterinaryId`. Los publishers reciben `EventContext` (`src/infrastructure/pubsub/publishers/event-context.ts`).
+
+Supuesto que Pets debe cumplir para esto: `POST /internal/pets/batch` devuelve, por mascota, `ownerId`, `name`, `claimStatus` y `ownerContact` (`{ name, email, phone }`) cuando `claimStatus = UNCLAIMED`. Hoy no existe en Pets y hay que confirmarlo (ver `PETS_SERVICE_CHANGES.md`).
 
 ### 7.3 Publish nunca debe romper la respuesta HTTP
 
@@ -208,25 +289,50 @@ npm run test:coverage
   ```
   Para mocks de un repositorio completo, tipa la variable como `jest.Mocked<XRepository>` (no como la interfaz cruda) — si no, `jest.fn()` no es asignable a las firmas concretas de cada método.
 - Convención de nombres: `<algo>.use-case.test.ts` dentro de `__test__/` junto al código que prueba.
+- Tests de `PubSubService` (`pubsub-envelope.test.ts`): mockean `@google-cloud/pubsub` y además `@nestjs/common` y `@nestjs/config`, porque `@nestjs/common` es ESM y Jest (ts-jest, CJS) no lo carga. Si un test nuevo importa un servicio con decoradores de Nest, replicar ese mock en vez de quitar el decorador.
+- Tests de lógica pura (sin Nest ni Supabase), como `src/shared/__test__/business-date.test.ts`, no necesitan mocks.
+- Tests de la capa de auth y clientes (`src/infrastructure/auth/__test__`, `clinical/__test__`, `clients/__test__`, `http/__test__`): los clientes HTTP (`pets.client`, `veterinary.client`) se simulan con `jest.mock` y se prueba la regla de decisión (dueño vs. clínica, permisos, 503, destinatario del evento). `jest.fn` tipado con genéricos (`jest.fn<(token: string) => Promise<…>>()`) porque `tsc` incluye los tests.
+- Prueba **manual** end-to-end sin Pets/Veterinary reales: `node scripts/dev-auth/stub-services.mjs` (imprime tokens firmados) y `npx next dev` con las variables de §9 apuntando al stub. Sirve para ver 401/403/503 reales. Las escrituras necesitan Supabase con las migraciones 001 y 002 aplicadas.
 
 ## 9. Variables de entorno
 
 | Variable | Dónde se usa | Notas |
 |---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL` | cliente Supabase | build-time (se incrusta en el bundle) y runtime |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | cliente Supabase | ídem |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | respaldo de `serverSupabaseKey()` (`supabase/server-key.ts`) | ídem. Solo se usa si falta `SUPABASE_SERVICE_ROLE_KEY`; con RLS activo, la anon key no puede escribir |
 | `GOOGLE_CLOUD_PROJECT` | `PubSubService` (fallback de `GCP_PROJECT_ID`) | runtime, **no** se incrusta en build |
 | `GCP_PROJECT_ID` | `PubSubService` (prioridad sobre `GOOGLE_CLOUD_PROJECT`) | opcional |
 | `GOOGLE_APPLICATION_CREDENTIALS` | ADC de `google-auth-library` | solo hace falta fuera de GCP (dev/Docker); en Cloud Run se resuelve solo |
+| `JWT_JWKS_URI` | `authenticate()` (`jose`) | **Obligatoria** para cualquier ruta protegida. URL del JWKS del User service (`…/.well-known/jwks.json`). Runtime, sin `NEXT_PUBLIC_` |
+| `PETS_SERVICE_URL` | `pets.client.ts` (dueño, batch) | Base de Pets, sin `/` final. Runtime |
+| `VETERINARY_SERVICE_URL` | `veterinary.client.ts` (access, summary) | Base de Veterinary. Runtime |
+| `INTERNAL_API_KEY` | `X-Internal-Api-Key` (cron entrante y llamadas a Pets/Veterinary) | Misma clave en todos los servicios (contrato §2). Runtime. Sin ella, las llamadas internas fallan con 500/503 |
+| `SUPABASE_SERVICE_ROLE_KEY` | Todos los clientes de servidor: `serverSupabaseKey()` (`client.ts`, `client-surgery.ts`, `supabase-vaccine.repository.ts`) y Storage del bucket `clinical-documents` | Secreta: solo runtime, nunca `NEXT_PUBLIC_`. Salta RLS: las 9 tablas clínicas tienen RLS activo y sin ella los inserts fallan con "violates row-level security policy". Sin ella se usa la anon key como respaldo |
+
+Para probar en local con el stub de `scripts/dev-auth/`: `JWT_JWKS_URI=http://localhost:8099/.well-known/jwks.json`, `PETS_SERVICE_URL=http://localhost:8099`, `VETERINARY_SERVICE_URL=http://localhost:8099`, `INTERNAL_API_KEY=dev-internal-key` (valor del stub). No se guardan en `.env.local` del repo.
 
 `.env.local` está en `.gitignore` y en `.dockerignore` — nunca llega a la imagen. Pásalo por `--build-arg` (solo las `NEXT_PUBLIC_*`) o `--env-file`/`-e` en runtime.
 
 ## 10. Deuda técnica conocida / cosas que no son bugs tuyos
 
 - **Naming inconsistente en `weight-record`**: DTOs `WeightRecordResponseDto` (`PascalCase`) conviven con la entidad/interfaz `weightRecord` (`camelCase`). Fue un refactor de notificaciones parcialmente aplicado; `userId`/`unit` en las respuestas de `findAll`/`findByPetId`/`getLatestByPetId`/`updateWeightByPetId` siguen hardcodeados como `''`/`'kg'` porque la tabla `WeightRecord` todavía no tiene esas columnas — son placeholders, no datos reales. **`vaccines.user_id` (§6) ya es el ejemplo de cómo resolverlo bien** si algún día hay que hacer lo mismo aquí: agregar la columna + repetir el mismo flujo entidad → mapper → insert → `mapToVaccine`.
-- **`lab_tests` no tiene `user_id`/`pet_id`**: cualquier notificación de laboratorio debe sacar esos campos del `body` de la request, nunca del repositorio (mismo caso que `weight-record`, sin resolver todavía).
+- **Fecha de negocio:** "hoy" se calcula con `todayInTimeZone()` (`src/shared/business-date.ts`, zona `America/Bogota` por defecto), **no** con `toISOString()`. Quedan pendientes en mappers/entidades que formatean fechas de registros existentes (no de "hoy"); ahí la fecha ya viene fijada por el usuario y no cambia de día.
+- **Migraciones:** scripts SQL en `db/scripts/`, aplicados a mano en el SQL Editor de Supabase, en orden. `001` (autoría) y `002` (`appointment_id`, `lab_tests`, `manufacturer`, `clinical_audit_log`). **Sin 002 aplicada, las escrituras de autoría fallan.**
+- **`lab_tests`:** ya tiene `pet_id`/`veterinary_id` (002). Notificaciones y autorización salen de Pets y de la visita, no de la tabla de mascotas.
+- **Estado de MED-01…07** (`MEDICAL_SERVICE_CHANGES.md`): implementados en código. Pendientes que dependen de otros servicios: Pets (`/internal/pets/{id}/owner/{u}`, `/internal/pets/batch` con `ownerContact`) y Veterinary (`/internal/veterinaries/{v}/patients/{p}/access`, `/summary`). Sin ellos, toda ruta protegida responde 503 (no 403).
+- **D9 — alergias:** no existen en Medical. `clinical-summary` devuelve `allergies: null`. Decidir si viven en Pets o Medical (`MYANIMALOG_VET_BRECHAS.md` §9.2).
+- **D10 — resuelto (27 oct 2026):** el dueño escribe historia de su propia mascota con el body base de cada endpoint (como antes). Los campos extra del mockup solo los guarda la veterinaria (`clinic-only.ts`). Esto contradice MED-03 de `MEDICAL_SERVICE_CHANGES.md` (que pedía 403 al dueño); el documento de MED-03 no se ha cambiado y debe alinearse con esta decisión.
 - **`AGENTS.md`/`CLAUDE.md`**: este archivo es la fuente de verdad; `CLAUDE.md` solo hace `@AGENTS.md`. Si edita uno de los dos, edita este.
-- **Archivos sueltos a limpiar**: `tsconfig.json5` (scratch, no lo lee nada), `sa.json` (directorio vacío creado por un `docker run -v` con un origen inexistente — bórralo y agrégalo a `.gitignore` para que no vuelva a colarse un service account key ahí por accidente).
+- **Archivos sueltos a limpiar**: `tsconfig.json5` (scratch, no lo lee nada). `sa.json` ya fue eliminado y `sa.json`, `*-sa.json`, `service-account*.json`, `gcp-key*.json` están en `.gitignore`.
+- **Pendientes de decisión (plan de autorización por clínica, ver `MEDICAL_SERVICE_CHANGES.md`):**
+  - D5: qué incluye `CLINICAL_READ_BASIC` (el contrato dice nombre/especie/alergias/próxima cita; MED-07 agrega vacunas, tratamientos y último peso).
+  - D6: prefijo de los cron (`/api/cron/**` vs. `/internal/**` del contrato §2).
+  - D7: formato de error. Hoy las rutas devuelven `{ error }`; el contrato pide `{ timestamp, status, error, message }`. Cambia 21 archivos y rompe clientes.
+  - D8: nombres de suscripción. El contrato dice `sub-notificaciones-<topic>`, pero las existentes son `sub-notificaciones-weight`, etc. Se propone corregir el contrato, no renombrar las suscripciones.
+  - Pendiente de otro servicio: Pets no expone `/internal/pets/...` ni emite el sobre §4.1 (ver `PETS_SERVICE_CHANGES.md`); User emite `ctx`/`sub` pero el access token todavía dura 60 min (el contrato pide 15).
+  - Medical: MED-01 (JWT + `sub`), MED-02/03 (autoría y autorización por actor), MED-04 (`appointmentId`), MED-05 (auditoría), MED-06 (destinatario desde Pets) y MED-07 (consultas de clínica) están implementados en código. Quedan pendientes de confirmar con otros equipos: formato real de `/internal/pets/batch` y los endpoints de Veterinary (ver §2.2 y §10 de `MEDICAL_SERVICE_CHANGES.md`).
+  - D7 (formato de error) queda **parcial**: las rutas tocadas ya devuelven el formato del contrato; las que no se tocaron siguen con `{ success, message }` o `{ error }`. Unificarlas es un cambio para todos los clientes a la vez.
+  - Cambio de cliente pendiente: las apps y el panel tienen que mandar `Authorization: Bearer` y dejar de enviar `userId`/`ownerId`/`veterinaryId`.
 - **`README.md`** es el boilerplate de `create-next-app`, sin actualizar.
 - **Sin CI** (`.github/workflows` no existe). `npm test` / `npm run build` / `npx tsc --noEmit` corren solo localmente o en el build de Docker.
 
@@ -261,7 +367,8 @@ gcloud run deploy <SERVICE_NAME> \
   --region <REGION> \
   --image <IMAGE> \
   --service-account=<SA_CON_roles/pubsub.publisher> \
-  --set-env-vars=GOOGLE_CLOUD_PROJECT=<PROJECT_ID>,NEXT_PUBLIC_SUPABASE_URL=...,NEXT_PUBLIC_SUPABASE_ANON_KEY=... \
+  --set-env-vars=GOOGLE_CLOUD_PROJECT=<PROJECT_ID>,NEXT_PUBLIC_SUPABASE_URL=...,NEXT_PUBLIC_SUPABASE_ANON_KEY=...,JWT_JWKS_URI=<USER_URL>/.well-known/jwks.json,PETS_SERVICE_URL=<PETS_URL>,VETERINARY_SERVICE_URL=<VET_URL> \
+  --set-secrets=INTERNAL_API_KEY=<SECRET_NAME>:latest \
   --allow-unauthenticated
 ```
 
@@ -275,4 +382,15 @@ npm run build           # incluye tsc --noEmit
 npm run lint
 npm test / test:watch / test:coverage
 npx tsc --noEmit -p tsconfig.json     # solo tipos, sin build completo
+node scripts/dev-auth/stub-services.mjs   # JWKS + Pets + Veterinary simulados y tokens de prueba (puerto 8099)
 ```
+
+<!-- BEGIN:nextjs-agent-rules -->
+
+# This is NOT the Next.js you know
+
+This version has breaking changes — APIs, conventions, and file structure may all differ from your training data. Read the relevant guide in `node_modules/next/dist/docs/` (resolved from this file's directory; in monorepos the `next` package may not be visible from the repo root) before writing any code. Heed deprecation notices.
+
+This block is written and re-added by `next dev` — verify at `node_modules/next/dist/server/lib/generate-agent-files.js`. Removing it from a diff only re-creates the uncommitted change; committing it with your work keeps the tree clean.
+
+<!-- END:nextjs-agent-rules -->

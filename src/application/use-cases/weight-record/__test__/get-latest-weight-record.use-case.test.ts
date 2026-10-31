@@ -30,8 +30,15 @@ describe('GetLatestWeightRecordByPetIdUseCase', () => {
     const result = await useCase.execute('uuid-1');
 
     expect(result).toEqual(mockLatest);
-    expect(result.petId).toBe('uuid-1');
-    expect(result.weight).toBe(5.1);
+    expect(result?.petId).toBe('uuid-1');
+    expect(result?.weight).toBe(5.1);
+  });
+
+  it('Debe devolver null cuando la mascota no tiene pesos', async () => {
+    mockRepository.getLatestByPetId.mockResolvedValue(null);
+    const useCase = new GetLatestWeightRecordByPetIdUseCase(mockRepository);
+
+    await expect(useCase.execute('uuid-1')).resolves.toBeNull();
   });
 
   //PetId correcto

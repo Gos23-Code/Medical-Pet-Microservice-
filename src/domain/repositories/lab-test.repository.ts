@@ -4,5 +4,5 @@ import { labTestListResponseDto, LabTestResponseDto } from '@/src/application/dt
 export interface LabTestRepository {
   save(labTest: LabTest): Promise<LabTestResponseDto>;
   findByVisistId(visit_id: string): Promise<labTestListResponseDto[]>;
-  updateResultByVisitId(visit_id: string, result: string): Promise<LabTestResponseDto>
+  updateResultById(id: string, result: string): Promise<LabTestResponseDto>;
 }

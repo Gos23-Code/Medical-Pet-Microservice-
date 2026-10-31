@@ -4,7 +4,8 @@
 export type VaccineStatusDTO = 'PENDIENTE' | 'APLICADO' | 'RETRASADO';
 
 export interface CreateVaccineDTO {
-  userId: string;  // ✅ AGREGAR userId
+  /** Dueño de la mascota, resuelto en Pets. Null si la mascota aún no tiene dueño con cuenta. */
+  userId: string | null;
   petId: string;
   name: string;
   lotNumber?: string;
@@ -12,6 +13,12 @@ export interface CreateVaccineDTO {
   nextDoseDate?: Date | null;
   veterinarian?: string;
   notes?: string;
+  manufacturer?: string;
+  // Autoría y destinatario (MED-02/MED-06). Los fija la ruta según el token.
+  veterinaryId?: string | null;
+  veterinaryName?: string | null;
+  appliedByEmployeeId?: string | null;
+  recipient?: { email?: string | null; phone?: string | null; name?: string | null } | null;
 }
 
 export interface UpdateVaccineDTO {

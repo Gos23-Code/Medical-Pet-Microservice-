@@ -4,6 +4,8 @@ import { Vaccine, CreateVaccineData, VaccineStatus } from '@/src/domain/entities
 import { IVaccineRepository } from '@/src/domain/repositories/vaccine.repositories';
 import { VaccineName } from '@/src/domain/value-objects/vaccine-name.vo';
 import { NextDoseDate } from '@/src/domain/value-objects/next-dosage.vo';
+import { todayInTimeZone } from '@/src/shared/business-date';
+import { serverSupabaseKey } from '@/src/infrastructure/database/supabase/server-key';
 
 // ✅ Interfaz para datos de actualización (sin userId)
 export interface VaccineUpdatePayload {
@@ -21,13 +23,16 @@ export interface VaccineUpdatePayload {
 interface VaccineSupabaseRecord {
   id: string;
   pet_id: string;
-  user_id: string;
+  user_id: string | null;
   name: string;
   lot_number: string | null;
   application_date: string;
   next_dose_date: string | null;
   veterinarian: string | null;
   notes: string | null;
+  manufacturer: string | null;
+  veterinary_id: string | null;
+  applied_by_employee_id: string | null;
   created_at: string;
   updated_at: string;
   status: string;
@@ -44,7 +49,7 @@ export class VaccineRepository implements IVaccineRepository {
   constructor() {
     this.supabase = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      serverSupabaseKey()
     );
   }
 
@@ -67,6 +72,9 @@ export class VaccineRepository implements IVaccineRepository {
       next_dose_date: vaccineData.nextDoseDate?.toISOString().split('T')[0] || null,
       veterinarian: vaccineData.veterinarian,
       notes: vaccineData.notes,
+      manufacturer: vaccineData.manufacturer ?? null,
+      veterinary_id: vaccineData.veterinaryId ?? null,
+      applied_by_employee_id: vaccineData.appliedByEmployeeId ?? null,
       status: initialStatus,
       reminder_count: 0,
       last_reminder_sent_at: null,
@@ -270,8 +278,8 @@ export class VaccineRepository implements IVaccineRepository {
   }
 
   async getVaccinesDueToday(): Promise<Vaccine[]> {
-    const today = new Date().toISOString().split('T')[0];
-    
+    const today = todayInTimeZone();
+
     const { data, error } = await this.supabase
       .from('vaccines')
       .select('*')
@@ -287,8 +295,8 @@ export class VaccineRepository implements IVaccineRepository {
   }
 
   async getOverdueVaccines(): Promise<Vaccine[]> {
-    const today = new Date().toISOString().split('T')[0];
-    
+    const today = todayInTimeZone();
+
     const { data, error } = await this.supabase
       .from('vaccines')
       .select('*')
@@ -360,21 +368,6 @@ async getPendingVaccinesByPet(petId: string): Promise<Vaccine[]> {
   
   // ✅ Usar VaccineSupabaseRecord en lugar de any
   return data.map((record: VaccineSupabaseRecord) => this.mapToVaccine(record));
-}
-// ✅ Obtener el userId de una mascota
-async getUserIdByPetId(petId: string): Promise<string | null> {
-  const { data, error } = await this.supabase
-    .from('pets')
-    .select('user_id')
-    .eq('id', petId)
-    .single();
-
-  if (error) {
-    console.error('Error fetching user_id for pet:', error);
-    return null;
-  }
-
-  return data?.user_id || null;
 }
 }
 

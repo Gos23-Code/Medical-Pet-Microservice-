@@ -48,10 +48,13 @@ function parseStatus(status: string): PetSurgeryStatus {
   return status as PetSurgeryStatus;
 }
 
+// Un outcome guardado fuera del enum (texto libre de antes de la validación) no debe tumbar la lectura:
+// se trata como sin outcome y se registra para limpiar la fila. Igual que PetSurgeryMapper.isValidOutcome.
 function parseOutcome(outcome: string | null | undefined): PetSurgeryOutcome | null {
   if (!outcome) return null;
   if (!VALID_OUTCOMES.includes(outcome as PetSurgeryOutcome)) {
-    throw new Error(`Invalid outcome value: ${outcome}`);
+    console.warn(`⚠️ outcome fuera del enum, se devuelve null: ${outcome}`);
+    return null;
   }
   return outcome as PetSurgeryOutcome;
 }

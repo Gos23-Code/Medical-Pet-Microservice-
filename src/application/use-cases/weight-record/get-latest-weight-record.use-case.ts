@@ -1,10 +1,11 @@
 import { weightRecordRepository } from '@/src/domain/repositories/weight-record.repository';
-import { WeightRecordByPetIdResponseDto } from '@/src/application/dtos/weight-record.dto';
+import { WeightRecordLatestResponseDto } from '@/src/application/dtos/weight-record.dto';
 
 export class GetLatestWeightRecordByPetIdUseCase {
   constructor(private readonly weightRecordRepository: weightRecordRepository) {}
 
-  async execute(petId: string): Promise<WeightRecordByPetIdResponseDto> {
+  // null = la mascota todavía no tiene pesos registrados
+  async execute(petId: string): Promise<WeightRecordLatestResponseDto | null> {
     if (!petId) {
       throw new Error('petId es requerido');
     }

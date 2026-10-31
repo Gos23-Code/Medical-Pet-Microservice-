@@ -2,12 +2,15 @@
 // CREATE WEIGHT RECORD DTO
 // ============================================
 export interface CreateWeightRecordDto {
-  userId: string;  // ✅ AGREGAR - necesario para notificaciones
+  userId: string;  // ✅ Sale del token (`sub`), nunca del body (MED-01)
   petId: string;
   weight: number;
   unit?: 'kg' | 'lb';  // ✅ AGREGAR - unidad de peso
   date?: string;
   note?: string;
+  /** Lo fija la ruta según el actor: OWNER (dueño) o CLINIC (clínica con NURSING_WRITE). */
+  source?: 'OWNER' | 'CLINIC';
+  veterinaryId?: string | null;
 }
 
 // ============================================

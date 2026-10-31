@@ -14,7 +14,8 @@ export class AddVaccineUseCase {
   async execute(dto: CreateVaccineDTO): Promise<Vaccine> {
     // 1. Validaciones básicas
     if (!dto.petId) throw new Error('El ID de la mascota es requerido');
-    if (!dto.userId) throw new Error('El ID del usuario es requerido');
+    // Sin dueño con cuenta, la mascota sigue teniendo un contacto para notificar (MED-06)
+    if (!dto.userId && !dto.recipient) throw new Error('El ID del usuario es requerido');
     if (!dto.name) throw new Error('El nombre de la vacuna es requerido');
     if (!dto.applicationDate) throw new Error('La fecha de aplicación es requerida');
 
@@ -39,6 +40,9 @@ export class AddVaccineUseCase {
         vaccineId: vaccine.id,
         petId: vaccine.petId,
         userId: userId,  // ✅ USAR userId del DTO
+        recipient: dto.recipient ?? null,
+        veterinaryId: dto.veterinaryId ?? null,
+        veterinaryName: dto.veterinaryName ?? null,
         name: vaccine.nameValue,
         batch: vaccine.lotNumber || 'N/A',
         applicationDate: vaccine.applicationDate.toISOString(),

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PubSubService } from '../services/pubsub.service';
 import { PUBSUB_TOPICS } from '../constants/pubsub.constants';
+import { EventContext, eventContextPayload, eventMetadata } from './event-context';
 import {
   VaccineAppliedData,
   VaccineUpdatedData,  // ✅ IMPORTAR
@@ -14,11 +15,13 @@ export class VaccinePublisher {
 
   constructor(private pubSubService: PubSubService) {}
 
-  async publishVaccineApplied(data: VaccineAppliedData): Promise<PublishResponse> {
+  async publishVaccineApplied(data: VaccineAppliedData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'VACCINE_APPLIED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         vaccineId: data.vaccineId,
         petId: data.petId,
         userId: data.userId,
@@ -34,7 +37,7 @@ export class VaccinePublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.VACCINE,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`💉 Vaccine applied: ${data.vaccineId}`);
@@ -48,11 +51,13 @@ export class VaccinePublisher {
   }
 
   // ✅ NUEVO: Vacuna actualizada
-  async publishVaccineUpdated(data: VaccineUpdatedData): Promise<PublishResponse> {
+  async publishVaccineUpdated(data: VaccineUpdatedData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'VACCINE_UPDATED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         vaccineId: data.vaccineId,
         petId: data.petId,
         userId: data.userId,
@@ -68,7 +73,7 @@ export class VaccinePublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.VACCINE,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`📝 Vaccine updated: ${data.vaccineId}`);
@@ -81,11 +86,13 @@ export class VaccinePublisher {
     };
   }
 
-  async publishVaccineDueReminder(data: VaccineDueReminderData): Promise<PublishResponse> {
+  async publishVaccineDueReminder(data: VaccineDueReminderData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: data.reminderType === 'DUE' ? 'VACCINE_DUE_REMINDER' : 'VACCINE_OVERDUE_REMINDER',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         petId: data.petId,
         userId: data.userId,
         vaccineName: data.vaccineName,
@@ -99,7 +106,7 @@ export class VaccinePublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.VACCINE,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`⏰ Vaccine ${data.reminderType} reminder: ${data.vaccineName}`);

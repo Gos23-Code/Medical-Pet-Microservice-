@@ -1,12 +1,49 @@
 import { Injectable, OnModuleInit, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PubSub } from '@google-cloud/pubsub';
+import { randomUUID } from 'crypto';
 import {
   PubSubMessage,
   PubSubEvent,
   PubSubEventMap,
   PubSubMetadata,
+  DomainEventInput,
+  DomainEventMetadata,
+  DomainEventEnvelope,
 } from '../interfaces/pubsub.interface';
+
+/**
+ * Contrato §4.1, regla 2: sin userId ni contacto no hay a quién notificar.
+ * Se lanza antes de tocar el topic; el route handler lo captura y solo loguea.
+ */
+export function assertHasRecipient(event: DomainEventInput): void {
+  const hasUser = typeof event.userId === 'string' && event.userId.trim() !== '';
+  const hasContact = Boolean(event.recipient?.email || event.recipient?.phone);
+  if (!hasUser && !hasContact) {
+    throw new Error(`Evento ${event.eventType} sin destinatario (userId ni recipient): no se publica`);
+  }
+}
+
+/** Construye el sobre de §4.1 con metadata por defecto (correlationId y veterinaryId). */
+export function buildDomainEventEnvelope(
+  event: DomainEventInput,
+  metadata?: DomainEventMetadata
+): DomainEventEnvelope {
+  return {
+    eventType: event.eventType,
+    userId: event.userId ?? null,
+    recipient: event.recipient ?? null,
+    payload: event.payload,
+    occurredAt: event.occurredAt ?? new Date().toISOString(),
+    metadata: {
+      version: '1.0',
+      source: 'medical-pet-backend',
+      veterinaryId: null,
+      correlationId: randomUUID(),
+      ...metadata,
+    },
+  };
+}
 
 @Injectable()
 export class PubSubService implements OnModuleInit {
@@ -111,22 +148,16 @@ export class PubSubService implements OnModuleInit {
    */
   async publishDomainEvent(
     topicName: string,
-    domainEvent: {
-      eventType: string;
-      userId: string;
-      payload: Record<string, unknown>;
-      occurredAt?: string;
-    },
-    metadata?: Record<string, string | number | boolean>
+    domainEvent: DomainEventInput,
+    metadata?: DomainEventMetadata
   ): Promise<string> {
+    assertHasRecipient(domainEvent);
+
     try {
       const topic = this.pubSubClient.topic(topicName);
-      
-      // Construir el mensaje final
-      const message = {
-        ...domainEvent,
-        metadata,
-      };
+
+      // Sobre común §4.1: userId, recipient, payload, occurredAt y metadata
+      const message = buildDomainEventEnvelope(domainEvent, metadata);
 
       const jsonString = JSON.stringify(message);
       

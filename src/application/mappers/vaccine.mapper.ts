@@ -13,7 +13,10 @@ export class VaccineMapper {
       applicationDate: dto.applicationDate,
       nextDoseDate: dto.nextDoseDate ?? null,
       veterinarian: dto.veterinarian ?? null,
-      notes: dto.notes ?? null
+      notes: dto.notes ?? null,
+      manufacturer: dto.manufacturer ?? null,
+      veterinaryId: dto.veterinaryId ?? null,
+      appliedByEmployeeId: dto.appliedByEmployeeId ?? null,
     };
   }
 

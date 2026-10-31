@@ -34,6 +34,8 @@ export class SupabaseWeightRecordRepository implements weightRecordRepository {
         ? record.date.toISOString().split('T')[0]
         : null,
       Note: record.note ?? null,
+      VeterinaryId: record.veterinaryId ?? null,
+      Source: record.source,
     })
     .select()
     .single();
@@ -102,17 +104,22 @@ export class SupabaseWeightRecordRepository implements weightRecordRepository {
   }
 
   //GetLatestByPetId
-  async getLatestByPetId(petId: string): Promise<WeightRecordLatestResponseDto> {
+  // maybeSingle: una mascota sin pesos no es un error (el primer peso la consulta antes de insertar)
+  async getLatestByPetId(petId: string): Promise<WeightRecordLatestResponseDto | null> {
     const { data, error } = await createClient()
     .from('WeightRecord')
     .select('PetId, Weight, Date')
     .eq('PetId', petId)
     .order('Created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle();
 
     if (error) {
       throw new Error(`Error obteniendo último peso: ${error.message}`);
+    }
+
+    if (!data) {
+      return null;
     }
 
     return {

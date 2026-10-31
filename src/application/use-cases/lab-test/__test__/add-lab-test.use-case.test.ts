@@ -43,7 +43,7 @@ describe('AddLabTestUseCase', () => {
     mockRepository = {
       save: jest.fn(),
       findByVisistId: jest.fn(),
-      updateResultByVisitId: jest.fn()
+      updateResultById: jest.fn()
     };
     useCase = new AddLabTestUseCase(mockRepository);
     (LabTestMapper.toDomain as jest.Mock).mockReturnValue(mockLabTest);

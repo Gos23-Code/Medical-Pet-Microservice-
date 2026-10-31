@@ -91,6 +91,8 @@ describe('SupabaseWeightRecordRepository', () => {
       expect(mockFrom).toHaveBeenCalledWith('WeightRecord');
       expect(mockInsert).toHaveBeenCalledWith({
         PetId: mockPetId,
+        VeterinaryId: null,
+        Source: 'CLINIC',
         Weight: mockWeight,
         Date: mockDate,
         Note: mockNote,
@@ -128,6 +130,8 @@ describe('SupabaseWeightRecordRepository', () => {
 
       expect(mockInsert).toHaveBeenCalledWith({
         PetId: mockPetId,
+        VeterinaryId: null,
+        Source: 'CLINIC',
         Weight: mockWeight,
         Date: null,
         Note: null,
@@ -268,7 +272,7 @@ describe('SupabaseWeightRecordRepository', () => {
         Weight: mockWeight,
         Date: mockDate,
       };
-      mockSingle.mockResolvedValue({ data: mockData, error: null });
+      mockMaybeSingle.mockResolvedValue({ data: mockData, error: null });
 
       const result = await repository.getLatestByPetId(mockPetId);
 
@@ -278,8 +282,8 @@ describe('SupabaseWeightRecordRepository', () => {
       expect(mockEq).toHaveBeenCalledWith('PetId', mockPetId);
       expect(mockOrder).toHaveBeenCalledWith('Created_at', { ascending: false });
       expect(mockLimit).toHaveBeenCalledWith(1);
-      expect(mockSingle).toHaveBeenCalled();
-      
+      expect(mockMaybeSingle).toHaveBeenCalled();
+
       expect(result).toEqual({
         petId: mockPetId,
         userId: '',
@@ -294,17 +298,25 @@ describe('SupabaseWeightRecordRepository', () => {
         Weight: null,
         Date: null,
       };
-      mockSingle.mockResolvedValue({ data: mockData, error: null });
+      mockMaybeSingle.mockResolvedValue({ data: mockData, error: null });
 
       const result = await repository.getLatestByPetId(mockPetId);
 
-      expect(result.weight).toBeUndefined();
-      expect(result.date).toBeUndefined();
+      expect(result?.weight).toBeUndefined();
+      expect(result?.date).toBeUndefined();
     });
 
-    it('should throw error when no latest record found', async () => {
-      const errorMessage = 'Not found';
-      mockSingle.mockResolvedValue({ data: null, error: { message: errorMessage } });
+    it('should return null when the pet has no weight records yet', async () => {
+      mockMaybeSingle.mockResolvedValue({ data: null, error: null });
+
+      const result = await repository.getLatestByPetId(mockPetId);
+
+      expect(result).toBeNull();
+    });
+
+    it('should throw error when the query fails', async () => {
+      const errorMessage = 'connection refused';
+      mockMaybeSingle.mockResolvedValue({ data: null, error: { message: errorMessage } });
 
       await expect(repository.getLatestByPetId(mockPetId)).rejects.toThrow(
         `Error obteniendo último peso: ${errorMessage}`

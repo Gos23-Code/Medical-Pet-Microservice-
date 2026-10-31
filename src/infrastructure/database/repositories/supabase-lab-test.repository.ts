@@ -81,21 +81,20 @@ export class SupabaseLabTestRepository implements LabTestRepository {
     }));
   }
 
-  //UpdateResultByVisit_id
-  async updateResultByVisitId(visit_id: string, result: string): Promise<LabTestResponseDto> {
+  //UpdateResultById: por id del examen. Por visita actualizaba todos los exámenes de la visita y .single() fallaba con 2 o más
+  async updateResultById(id: string, result: string): Promise<LabTestResponseDto> {
     const {data, error}= await createClient()
     .from('lab_tests')
     .update({result: result})
-    .eq('visit_id', visit_id)
+    .eq('id', id)
     .select()
-    .limit(1)
     .single();
     
     if(error){
       throw new Error(`Error al actualizar resultado:: ${error.message}`);
     }
     if(!data){
-      throw new Error(`No se encontró lab test con visit_id: ${visit_id}`);
+      throw new Error(`No se encontró lab test con id: ${id}`);
     }
     const record = data as SupabaseLabTest;
     return{

@@ -9,238 +9,258 @@ import { UpdateTreatmentDTO } from '@/src/application/dtos/treatment.dto';
 import { Treatment } from '@/src/domain/entities/treatment.entity';
 import { Medication } from '@/src/domain/repositories/treatment.repository';
 import { createTreatmentsPublisher } from '@/src/infrastructure/pubsub/pubsub.factory';
+import { withAuth } from '@/src/infrastructure/auth/with-auth';
+import { authorizePet } from '@/src/infrastructure/auth/clinical-access';
+import { resolveEventTarget } from '@/src/infrastructure/clinical/event-target';
+import {
+  SupabaseClinicalAuditRepository,
+  buildChanges,
+} from '@/src/infrastructure/database/repositories/supabase-clinical-audit.repository';
+import { petIdOfTreatment } from '@/src/infrastructure/database/pet-lookup';
+import { NotFoundError } from '@/src/infrastructure/http/api-error';
+import { loadExtras, saveExtras } from '@/src/infrastructure/database/clinical-extras';
+import { parseFields, toResponse } from '@/src/application/clinical/field-spec';
+import { parseClinicExtras } from '@/src/application/clinical/clinic-only';
+import { TREATMENT_EXTRA_FIELDS } from '@/src/application/clinical/clinical-specs';
 
 const repository = new SupabaseTreatmentRepository();
 const getTreatmentUseCase = new GetTreatmentUseCase(repository);
 const updateTreatmentUseCase = new UpdateTreatmentUseCase(repository);
 const isActiveUseCase = new IsActiveUseCase(repository);
+const auditRepository = new SupabaseClinicalAuditRepository();
+
+const TREATMENT_EXTRA_COLUMNS = Object.values(TREATMENT_EXTRA_FIELDS).map((def) => def.column);
+
+// Columnas del mockup (estado, indicaciones, suspensión) que no maneja el caso de uso original.
+async function treatmentExtrasFor(id: string) {
+  const extras = await loadExtras('treatments', [id], TREATMENT_EXTRA_COLUMNS);
+  return toResponse(extras.get(id) ?? {}, TREATMENT_EXTRA_FIELDS);
+}
 
 // ✅ Obtener instancia del publisher
 const treatmentsPublisher = createTreatmentsPublisher();
 
-// GET /api/treatments/[id] - Obtener tratamiento completo con medicamentos
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  
+type RouteContext = { params: Promise<{ id: string }> };
+
+// GET /api/treatments/[id] - Tratamiento completo con medicamentos (dueño o clínica con CLINICAL_READ)
+export const GET = withAuth(async (_request: NextRequest, context: RouteContext, actor) => {
+  const { id } = await context.params;
   console.log(`📝 GET /api/treatments/${id} - Obteniendo tratamiento con medicamentos`);
-  
-  try {
-    const result = await getTreatmentUseCase.execute(id, true);
-    
-    let treatment: Treatment;
-    let medications: Medication[] = [];
-    
-    if ('treatment' in result && 'medications' in result) {
-      treatment = result.treatment;
-      medications = result.medications;
-    } else {
-      treatment = result as Treatment;
-    }
-    
-    const medicationsForDTO = medications.map(med => ({
-      id: med.id,
-      treatmentId: med.treatmentId,
-      name: med.name,
-      dosage: med.dosage,
-      frequency: med.frequency,
-      duration: med.duration,
-      createdAt: med.createdAt.toISOString(),
-      updatedAt: med.updatedAt.toISOString(),
-    }));
-    
-    const activeStatus = await isActiveUseCase.execute(id);
-    const dto = TreatmentMapper.toDTO(treatment, medicationsForDTO);
-    
-    return NextResponse.json({
-      success: true,
-      data: {
-        ...dto,
-        isActive: activeStatus.isActive,
-        activeStatus: {
-          status: activeStatus.status,
-          message: activeStatus.message,
-        }
-      }
-    });
-    
-  } catch (error) {
-    console.error("❌ Error:", error);
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'Error interno' },
-      { status: 500 }
-    );
+
+  const petId = await petIdOfTreatment(id);
+  if (!petId) {
+    throw new NotFoundError('TREATMENT_NOT_FOUND', 'Tratamiento no encontrado');
   }
-}
+  await authorizePet(actor, petId, 'CLINICAL_READ');
 
-// PUT /api/treatments/[id] - Actualizar tratamiento (fechas y notas)
-export async function PUT(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
-  const { id } = await params;
-  
+  const result = await getTreatmentUseCase.execute(id, true);
+
+  let treatment: Treatment;
+  let medications: Medication[] = [];
+
+  if ('treatment' in result && 'medications' in result) {
+    treatment = result.treatment;
+    medications = result.medications;
+  } else {
+    treatment = result as Treatment;
+  }
+
+  const medicationsForDTO = medications.map((med) => ({
+    id: med.id,
+    treatmentId: med.treatmentId,
+    name: med.name,
+    dosage: med.dosage,
+    frequency: med.frequency,
+    duration: med.duration,
+    createdAt: med.createdAt.toISOString(),
+    updatedAt: med.updatedAt.toISOString(),
+  }));
+
+  const activeStatus = await isActiveUseCase.execute(id);
+  const dto = TreatmentMapper.toDTO(treatment, medicationsForDTO);
+
+  return NextResponse.json({
+    success: true,
+    data: {
+      ...dto,
+      ...(await treatmentExtrasFor(id)),
+      isActive: activeStatus.isActive,
+      activeStatus: {
+        status: activeStatus.status,
+        message: activeStatus.message,
+      },
+    },
+  });
+});
+
+// PUT /api/treatments/[id] - Actualizar tratamiento (fechas y notas). Solo clínica con CLINICAL_WRITE.
+export const PUT = withAuth(async (request: NextRequest, context: RouteContext, actor) => {
+  const { id } = await context.params;
   console.log(`📝 PUT /api/treatments/${id} - Actualizando tratamiento`);
-  
-  try {
-    const body: UpdateTreatmentDTO = await request.json();
-    
-    console.log("📦 Body recibido:", body);
-    
-    // ✅ Validar userId (necesario para notificaciones)
-    if (!body.userId) {
-      return NextResponse.json(
-        { success: false, message: 'userId es requerido para notificaciones' },
-        { status: 400 }
-      );
-    }
 
-    // ✅ Validar petId (necesario para notificaciones)
-    if (!body.petId) {
-      return NextResponse.json(
-        { success: false, message: 'petId es requerido para notificaciones' },
-        { status: 400 }
-      );
-    }
-    
-    // 1. Obtener el tratamiento actual para comparar cambios
-    const currentResult = await getTreatmentUseCase.execute(id, false);
-    const currentTreatment = currentResult as Treatment;
-    
-    // 2. Detectar cambios
-    const hasEndDateAdded = body.endDate && !currentTreatment.endDate;
-    const hasNotesChanged = body.notes !== undefined && body.notes !== currentTreatment.notes;
-    const hasStartDateChanged = body.startDate !== undefined && body.startDate !== currentTreatment.startDate.toISOString().split('T')[0];
-    const hasEndDateChanged = body.endDate !== undefined && body.endDate !== (currentTreatment.endDate?.toISOString().split('T')[0] || null);
-    
-    console.log("🔍 Cambios detectados:", {
-      hasEndDateAdded,
-      hasNotesChanged,
-      hasStartDateChanged,
-      hasEndDateChanged,
-    });
-    
-    // 3. ✅ Actualizar el tratamiento
-    await updateTreatmentUseCase.execute(id, {
-      userId: body.userId,
-      petId: body.petId,
-      startDate: body.startDate,
-      endDate: body.endDate,
-      notes: body.notes,
-    });
-    
-    // 4. Obtener el tratamiento actualizado
-    const result = await getTreatmentUseCase.execute(id, true);
-    
-    let treatment: Treatment;
-    let medications: Medication[] = [];
-    
-    if ('treatment' in result && 'medications' in result) {
-      treatment = result.treatment;
-      medications = result.medications;
-    } else {
-      treatment = result as Treatment;
-    }
-    
-    // 5. Obtener estado activo con progreso
-    const activeStatus = await isActiveUseCase.execute(id);
-    
-    // 6. ✅ NOTIFICACIONES
-    let notificationSent = false;
-    
+  const petId = await petIdOfTreatment(id);
+  if (!petId) {
+    throw new NotFoundError('TREATMENT_NOT_FOUND', 'Tratamiento no encontrado');
+  }
+  const authorship = await authorizePet(actor, petId, 'CLINICAL_WRITE');
+
+  const body: UpdateTreatmentDTO = await request.json();
+
+  const parsed = parseClinicExtras(!!actor.clinic, body as unknown as Record<string, unknown>, TREATMENT_EXTRA_FIELDS);
+  if (!parsed.ok) {
+    return NextResponse.json({ success: false, message: parsed.message }, { status: 400 });
+  }
+
+  // 1. Obtener el tratamiento actual para comparar cambios
+  const currentResult = await getTreatmentUseCase.execute(id, false);
+  const currentTreatment = currentResult as Treatment;
+
+  // 2. Detectar cambios
+  const hasEndDateAdded = body.endDate && !currentTreatment.endDate;
+  const hasNotesChanged = body.notes !== undefined && body.notes !== currentTreatment.notes;
+  const hasStartDateChanged = body.startDate !== undefined && body.startDate !== currentTreatment.startDate.toISOString().split('T')[0];
+  const hasEndDateChanged = body.endDate !== undefined && body.endDate !== (currentTreatment.endDate?.toISOString().split('T')[0] || null);
+
+  // 3. Actualizar el tratamiento
+  await updateTreatmentUseCase.execute(id, {
+    userId: actor.userId,
+    petId: petId,
+    startDate: body.startDate,
+    endDate: body.endDate,
+    notes: body.notes,
+  });
+
+  await auditRepository.record({
+    tableName: 'treatments',
+    recordId: id,
+    action: 'UPDATE',
+    actorUserId: actor.userId,
+    veterinaryId: authorship.veterinaryId,
+    changes: buildChanges(
+      {
+        start_date: currentTreatment.startDate.toISOString().split('T')[0],
+        end_date: currentTreatment.endDate?.toISOString().split('T')[0] ?? null,
+        notes: currentTreatment.notes ?? null,
+      },
+      {
+        start_date: body.startDate,
+        end_date: body.endDate,
+        notes: body.notes,
+      }
+    ),
+  });
+
+  await saveExtras('treatments', id, parsed.values);
+
+  // 4. Obtener el tratamiento actualizado
+  const result = await getTreatmentUseCase.execute(id, true);
+
+  let treatment: Treatment;
+  let medications: Medication[] = [];
+
+  if ('treatment' in result && 'medications' in result) {
+    treatment = result.treatment;
+    medications = result.medications;
+  } else {
+    treatment = result as Treatment;
+  }
+
+  // 5. Obtener estado activo con progreso
+  const activeStatus = await isActiveUseCase.execute(id);
+
+  // 6. ✅ NOTIFICACIONES (destinatario = dueño de la mascota, resuelto en Pets)
+  const target = await resolveEventTarget(petId, authorship);
+  let notificationSent = false;
+
+  if (target) {
     // 6a. Si se agregó endDate manualmente (tratamiento completado)
     if (hasEndDateAdded) {
-      console.log("📤 Publicando evento TREATMENT_COMPLETED (endDate agregado manualmente)...");
       try {
         await treatmentsPublisher.publishTreatmentCompleted({
           treatmentId: id,
-          petId: body.petId,
-          userId: body.userId,
+          petId: petId,
+          userId: target.userId,
+          recipient: target.recipient,
+          veterinaryId: target.veterinaryId,
+          veterinaryName: target.veterinaryName,
           outcome: 'completed',
           completedAt: new Date().toISOString(),
         });
-        console.log("✅ Evento TREATMENT_COMPLETED publicado correctamente");
         notificationSent = true;
       } catch (pubsubError) {
-        console.error("❌ Error publicando en Pub/Sub:", pubsubError);
+        console.error('❌ Error publicando en Pub/Sub:', pubsubError);
       }
     }
-    
-    // 6b. ✅ Si el progreso llegó al 100% (ACTIVE_LAST_DAY o EXPIRED) - NUEVO
+
+    // 6b. Si el progreso llegó al 100% (ACTIVE_LAST_DAY o EXPIRED)
     if (!notificationSent && activeStatus.progress === 100) {
       const outcome = activeStatus.status === 'EXPIRED' ? 'expired' : 'completed';
-      console.log(`📤 Publicando evento TREATMENT_COMPLETED (progreso 100% - ${activeStatus.status})...`);
       try {
         await treatmentsPublisher.publishTreatmentCompleted({
           treatmentId: id,
-          petId: body.petId,
-          userId: body.userId,
+          petId: petId,
+          userId: target.userId,
+          recipient: target.recipient,
+          veterinaryId: target.veterinaryId,
+          veterinaryName: target.veterinaryName,
           outcome: outcome,
           completedAt: new Date().toISOString(),
         });
-        console.log(`✅ Evento TREATMENT_COMPLETED publicado correctamente (${outcome})`);
         notificationSent = true;
       } catch (pubsubError) {
-        console.error("❌ Error publicando en Pub/Sub:", pubsubError);
+        console.error('❌ Error publicando en Pub/Sub:', pubsubError);
       }
     }
-    
+
     // 6c. Si se actualizaron notas (evolución del tratamiento) y no se envió notificación antes
     if (hasNotesChanged && !notificationSent) {
-      console.log("📤 Publicando evento TREATMENT_UPDATED...");
       try {
         await treatmentsPublisher.publishTreatmentUpdated({
           treatmentId: id,
-          petId: body.petId,
-          userId: body.userId,
+          petId: petId,
+          userId: target.userId,
+          recipient: target.recipient,
+          veterinaryId: target.veterinaryId,
+          veterinaryName: target.veterinaryName,
           progress: activeStatus.progress || 0,
           status: activeStatus.status || 'in_progress',
           updatedAt: new Date().toISOString(),
         });
-        console.log("✅ Evento TREATMENT_UPDATED publicado correctamente");
       } catch (pubsubError) {
-        console.error("❌ Error publicando en Pub/Sub:", pubsubError);
+        console.error('❌ Error publicando en Pub/Sub:', pubsubError);
       }
     }
-    
-    // 7. Si solo se actualizaron fechas (sin notas), no se envía notificación
-    if ((hasStartDateChanged || hasEndDateChanged) && !hasNotesChanged && !hasEndDateAdded && activeStatus.progress !== 100) {
-      console.log("ℹ️ Solo se actualizaron fechas - sin notificación (el progreso se recalcula automáticamente)");
-    }
-    
-    const medicationsForDTO = medications.map(med => ({
-      id: med.id,
-      treatmentId: med.treatmentId,
-      name: med.name,
-      dosage: med.dosage,
-      frequency: med.frequency,
-      duration: med.duration,
-      createdAt: med.createdAt.toISOString(),
-      updatedAt: med.updatedAt.toISOString(),
-    }));
-    
-    const dto = TreatmentMapper.toDTO(treatment, medicationsForDTO);
-    
-    return NextResponse.json({
-      success: true,
-      message: 'Tratamiento actualizado exitosamente',
-      data: {
-        ...dto,
-        isActive: activeStatus.isActive,
-        activeStatus: {
-          status: activeStatus.status,
-          message: activeStatus.message,
-        }
-      }
-    });
-    
-  } catch (error) {
-    console.error("❌ Error:", error);
-    return NextResponse.json(
-      { success: false, message: error instanceof Error ? error.message : 'Error interno' },
-      { status: 500 }
-    );
   }
-}
+
+  // 7. Si solo se actualizaron fechas (sin notas), no se envía notificación: el progreso se recalcula solo
+  if ((hasStartDateChanged || hasEndDateChanged) && !hasNotesChanged && !hasEndDateAdded && activeStatus.progress !== 100) {
+    console.log('ℹ️ Solo se actualizaron fechas - sin notificación (el progreso se recalcula automáticamente)');
+  }
+
+  const medicationsForDTO = medications.map((med) => ({
+    id: med.id,
+    treatmentId: med.treatmentId,
+    name: med.name,
+    dosage: med.dosage,
+    frequency: med.frequency,
+    duration: med.duration,
+    createdAt: med.createdAt.toISOString(),
+    updatedAt: med.updatedAt.toISOString(),
+  }));
+
+  const dto = TreatmentMapper.toDTO(treatment, medicationsForDTO);
+
+  return NextResponse.json({
+    success: true,
+    message: 'Tratamiento actualizado exitosamente',
+    data: {
+      ...dto,
+      ...(await treatmentExtrasFor(id)),
+      isActive: activeStatus.isActive,
+      activeStatus: {
+        status: activeStatus.status,
+        message: activeStatus.message,
+      },
+    },
+  });
+});

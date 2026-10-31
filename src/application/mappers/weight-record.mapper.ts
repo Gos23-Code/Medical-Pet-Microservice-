@@ -10,6 +10,8 @@ export class weightRecordMapper {
       unit: dto.unit ?? 'kg',
       date: dto.date ? new Date(dto.date) : undefined,
       note: dto.note,
+      source: dto.source ?? 'CLINIC',
+      veterinaryId: dto.veterinaryId ?? null,
     });
   }
 }

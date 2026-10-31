@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PubSubService } from '../services/pubsub.service';
 import { PUBSUB_TOPICS } from '../constants/pubsub.constants';
+import { EventContext, eventContextPayload, eventMetadata } from './event-context';
 import {
   SurgeryScheduledData,
   SurgeryCompletedData,
@@ -13,12 +14,14 @@ export class SurgeryPublisher {
 
   constructor(private pubSubService: PubSubService) {}
 
-  async publishSurgeryScheduled(data: SurgeryScheduledData): Promise<PublishResponse> {
+  async publishSurgeryScheduled(data: SurgeryScheduledData & EventContext): Promise<PublishResponse> {
     // ✅ Construir DomainEvent con userId en la raíz
     const domainEvent = {
       eventType: 'SURGERY_SCHEDULED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         surgeryId: data.surgeryId,
         petId: data.petId,
         userId: data.userId,
@@ -32,7 +35,7 @@ export class SurgeryPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.SURGERY,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`🔪 Surgery scheduled: ${data.surgeryId}`);
@@ -45,12 +48,14 @@ export class SurgeryPublisher {
     };
   }
 
-  async publishSurgeryCompleted(data: SurgeryCompletedData): Promise<PublishResponse> {
+  async publishSurgeryCompleted(data: SurgeryCompletedData & EventContext): Promise<PublishResponse> {
     // ✅ Construir DomainEvent con userId en la raíz
     const domainEvent = {
       eventType: 'SURGERY_COMPLETED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         surgeryId: data.surgeryId,
         petId: data.petId,
         userId: data.userId,
@@ -64,7 +69,7 @@ export class SurgeryPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.SURGERY,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`✅ Surgery completed: ${data.surgeryId}`);

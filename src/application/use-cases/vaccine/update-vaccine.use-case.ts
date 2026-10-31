@@ -10,7 +10,10 @@ export class UpdateVaccineUseCase {
 
   async execute(data: {
     id: string;
-    userId: string;
+    userId?: string | null;
+    recipient?: { email?: string | null; phone?: string | null; name?: string | null } | null;
+    veterinaryId?: string | null;
+    veterinaryName?: string | null;
     petId?: string;
     name?: string;
     lotNumber?: string | null;
@@ -20,8 +23,8 @@ export class UpdateVaccineUseCase {
     notes?: string | null;
     status?: string;
   }): Promise<Vaccine> {
-    // ✅ Validar userId
-    if (!data.userId) {
+    // ✅ Validar destinatario: userId del dueño o, si no tiene cuenta, su contacto (MED-06)
+    if (!data.userId && !data.recipient) {
       throw new Error('userId es requerido para notificaciones');
     }
 
@@ -112,7 +115,10 @@ export class UpdateVaccineUseCase {
       await this.vaccinePublisher.publishVaccineUpdated({
         vaccineId: vaccine.id,
         petId: vaccine.petId,
-        userId: data.userId,
+        userId: data.userId ?? null,
+        recipient: data.recipient ?? null,
+        veterinaryId: data.veterinaryId ?? null,
+        veterinaryName: data.veterinaryName ?? null,
         name: vaccine.nameValue,
         oldStatus: oldStatus,
         newStatus: vaccine.status,

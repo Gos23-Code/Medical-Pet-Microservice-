@@ -27,30 +27,30 @@ describe('UpdateLabTestResultUseCase', () => {
     mockRepository = {
       save: jest.fn(),
       findByVisistId: jest.fn(),
-      updateResultByVisitId: jest.fn()
+      updateResultById: jest.fn()
     };
     useCase = new UpdateLabTestResultUseCase(mockRepository);
   });
 
   it('should update result successfully', async () => {
-    mockRepository.updateResultByVisitId.mockResolvedValue(mockResponse);
+    mockRepository.updateResultById.mockResolvedValue(mockResponse);
 
     const result = await useCase.execute('vis-456', mockDto);
 
     expect(result).toEqual(mockResponse);
-    expect(mockRepository.updateResultByVisitId).toHaveBeenCalledWith('vis-456', '98');
+    expect(mockRepository.updateResultById).toHaveBeenCalledWith('vis-456', '98');
   });
 
-  it('should throw error if visit_id is missing', async () => {
-    await expect(useCase.execute('', mockDto)).rejects.toThrow('visit_id es requerido');
+  it('should throw error if labTestId is missing', async () => {
+    await expect(useCase.execute('', mockDto)).rejects.toThrow('labTestId es requerido');
   });
 
-  it('should throw error if visit_id is null', async () => {
-    await expect(useCase.execute(null as unknown as string, mockDto)).rejects.toThrow('visit_id es requerido');
+  it('should throw error if labTestId is null', async () => {
+    await expect(useCase.execute(null as unknown as string, mockDto)).rejects.toThrow('labTestId es requerido');
   });
 
-  it('should throw error if visit_id is undefined', async () => {
-    await expect(useCase.execute(undefined as unknown as string, mockDto)).rejects.toThrow('visit_id es requerido');
+  it('should throw error if labTestId is undefined', async () => {
+    await expect(useCase.execute(undefined as unknown as string, mockDto)).rejects.toThrow('labTestId es requerido');
   });
 
   it('should throw error if result is missing in dto', async () => {
@@ -71,7 +71,7 @@ describe('UpdateLabTestResultUseCase', () => {
 
   it('should propagate repository errors', async () => {
     const error = new Error('Repository error');
-    mockRepository.updateResultByVisitId.mockRejectedValue(error);
+    mockRepository.updateResultById.mockRejectedValue(error);
 
     await expect(useCase.execute('vis-456', mockDto)).rejects.toThrow('Repository error');
   });
@@ -91,17 +91,17 @@ describe('UpdateLabTestResultUseCase', () => {
         result: testCase.expected
       };
       
-      mockRepository.updateResultByVisitId.mockResolvedValue(response);
+      mockRepository.updateResultById.mockResolvedValue(response);
       
       const result = await useCase.execute('vis-456', dto);
       expect(result.result).toBe(testCase.expected);
-      expect(mockRepository.updateResultByVisitId).toHaveBeenCalledWith('vis-456', testCase.result);
+      expect(mockRepository.updateResultById).toHaveBeenCalledWith('vis-456', testCase.result);
     }
   });
 
   it('should handle repository returning null response', async () => {
     // Esto podría pasar si el repositorio no encuentra el registro
-    mockRepository.updateResultByVisitId.mockResolvedValue(null as unknown as LabTestResponseDto);
+    mockRepository.updateResultById.mockResolvedValue(null as unknown as LabTestResponseDto);
 
     const result = await useCase.execute('vis-456', mockDto);
     expect(result).toBeNull();

@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PubSubService } from '../services/pubsub.service';
 import { PUBSUB_TOPICS } from '../constants/pubsub.constants';
+import { EventContext, eventContextPayload, eventMetadata } from './event-context';
 import {
   WeightRecordedData,
   WeightAlertData,
@@ -14,11 +15,13 @@ export class WeightRecordPublisher {
 
   constructor(private pubSubService: PubSubService) {}
 
-  async publishWeightRecorded(data: WeightRecordedData): Promise<PublishResponse> {
+  async publishWeightRecorded(data: WeightRecordedData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'WEIGHT_RECORDED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         weightId: data.weightId,
         petId: data.petId,
         userId: data.userId,
@@ -33,7 +36,7 @@ export class WeightRecordPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.WEIGHT_RECORD,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`⚖️ Weight recorded: ${data.weightId} → ${data.weight}${data.unit}`);
@@ -47,11 +50,13 @@ export class WeightRecordPublisher {
   }
 
   // ✅ NUEVO: Peso actualizado
-  async publishWeightUpdated(data: WeightUpdatedData): Promise<PublishResponse> {
+  async publishWeightUpdated(data: WeightUpdatedData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'WEIGHT_UPDATED',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         weightId: data.weightId,
         petId: data.petId,
         userId: data.userId,
@@ -67,7 +72,7 @@ export class WeightRecordPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.WEIGHT_RECORD,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`⚖️ Weight updated: ${data.weightId} → ${data.oldWeight} → ${data.newWeight}${data.unit}`);
@@ -80,11 +85,13 @@ export class WeightRecordPublisher {
     };
   }
 
-  async publishWeightAlert(data: WeightAlertData): Promise<PublishResponse> {
+  async publishWeightAlert(data: WeightAlertData & EventContext): Promise<PublishResponse> {
     const domainEvent = {
       eventType: 'WEIGHT_ALERT',
-      userId: data.userId,
+      userId: data.userId ?? null,
+      recipient: data.recipient ?? null,
       payload: {
+        ...eventContextPayload(data),
         petId: data.petId,
         userId: data.userId,
         currentWeight: data.currentWeight,
@@ -99,7 +106,7 @@ export class WeightRecordPublisher {
     const messageId = await this.pubSubService.publishDomainEvent(
       PUBSUB_TOPICS.WEIGHT_RECORD,
       domainEvent,
-      { version: '1.0', source: 'medical-pet-backend' }
+      eventMetadata(data)
     );
 
     this.logger.log(`⚠️ Weight alert: ${data.alertType} → ${data.percentageChange}%`);
