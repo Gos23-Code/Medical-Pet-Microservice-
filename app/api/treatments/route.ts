@@ -64,6 +64,7 @@ export const POST = withAuth(async (request: NextRequest, _context, actor) => {
     source: authorship.source,
     veterinary_id: authorship.veterinaryId,
     prescribed_by_employee_id: authorship.employeeId,
+    created_by_user_id: actor.userId,
     created_at: new Date().toISOString(),
     ...parsed.values,
   };

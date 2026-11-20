@@ -1,6 +1,6 @@
+import { withCorrections } from '@/src/infrastructure/clinical/act-versions';
 import { NextRequest, NextResponse } from 'next/server';
 import { AddWeightRecordUseCase } from '@/src/application/use-cases/weight-record/add-weight-record.use-case';
-import { UpdateWeightRecordUseCase} from '@/src/application/use-cases/weight-record/update-weight-record.use-case';
 import { SupabaseWeightRecordRepository } from '@/src/infrastructure/database/repositories/supabase-weight-record.repository';
 import { GetLatestWeightRecordByPetIdUseCase } from '@/src/application/use-cases//weight-record/get-latest-weight-record.use-case';
 import { createWeightRecordPublisher } from '@/src/infrastructure/pubsub/pubsub.factory';
@@ -10,9 +10,9 @@ import { WEIGHT_REGISTRATION_COLUMNS } from '@/src/application/clinical/clinical
 import { withAuth } from '@/src/infrastructure/auth/with-auth';
 import { authorizePet } from '@/src/infrastructure/auth/clinical-access';
 import { resolveEventTarget } from '@/src/infrastructure/clinical/event-target';
+import { overwriteRefused } from '@/src/infrastructure/clinical/correction-handlers';
 import {
   SupabaseClinicalAuditRepository,
-  buildChanges,
 } from '@/src/infrastructure/database/repositories/supabase-clinical-audit.repository';
 
 const repository = new SupabaseWeightRecordRepository();
@@ -143,7 +143,7 @@ export const GET = withAuth(async (req: NextRequest, _context, actor) => {
     if (!result) {
       return NextResponse.json({ error: 'La mascota no tiene pesos registrados' }, { status: 404 });
     }
-    return NextResponse.json(result, { status: 200 });
+    return NextResponse.json(await withCorrections('WeightRecord', result), { status: 200 });
   }
 
   // Historial para la pestaña Peso: origen, fecha, nota y quién lo registró
@@ -172,92 +172,8 @@ export const GET = withAuth(async (req: NextRequest, _context, actor) => {
       role: row.RegisteredByRole,
     },
   }));
-  return NextResponse.json(records, { status: 200 });
+  return NextResponse.json(await withCorrections('WeightRecord', records), { status: 200 });
 });
 
-// ============================================
-// PATCH - Corregir el último peso de la mascota (?petId=...)
-// Mismo body para dueño y clínica. Queda en auditoría con antes/después.
-// ============================================
-export const PATCH = withAuth(async (req: NextRequest, _context, actor) => {
-  console.log('🚀 PATCH /api/weightRecord');
-  const petId = req.nextUrl.searchParams.get('petId');
-
-  if (!petId) {
-    return NextResponse.json({ error: 'PetId es requerido' }, { status: 400 });
-  }
-
-  const body = await req.json();
-
-  if (!body.weight) {
-    return NextResponse.json({ error: 'weight es requerido' }, { status: 400 });
-  }
-
-  const authorship = await authorizePet(actor, petId, 'WEIGHT_WRITE');
-
-  const currentRecord = await new GetLatestWeightRecordByPetIdUseCase(repository).execute(petId);
-  const previousWeight: number | undefined = currentRecord?.weight;
-
-  const result = await new UpdateWeightRecordUseCase(repository).execute(petId, {
-    userId: actor.userId,
-    weight: body.weight,
-    unit: body.unit || 'kg',
-    note: body.note,
-  });
-
-  await auditRepository.record({
-    tableName: 'WeightRecord',
-    recordId: result.id,
-    action: 'UPDATE',
-    actorUserId: actor.userId,
-    veterinaryId: authorship.veterinaryId,
-    changes: buildChanges({ weight: previousWeight }, { weight: body.weight }),
-  });
-
-  if (previousWeight !== undefined && previousWeight !== body.weight) {
-    const target = await resolveEventTarget(petId, authorship);
-    if (target) {
-      try {
-        await weightRecordPublisher.publishWeightUpdated({
-          weightId: result.id,
-          petId: petId,
-          userId: target.userId,
-          recipient: target.recipient,
-          veterinaryId: target.veterinaryId,
-          veterinaryName: target.veterinaryName,
-          oldWeight: previousWeight,
-          newWeight: body.weight,
-          unit: body.unit || 'kg',
-          updatedAt: new Date().toISOString(),
-          notes: body.note,
-        });
-        console.log('✅ Evento WEIGHT_UPDATED publicado correctamente');
-      } catch (pubsubError) {
-        console.error('❌ Error publicando en Pub/Sub:', pubsubError);
-      }
-
-      const percentageChange = Math.abs(((body.weight - previousWeight) / previousWeight) * 100);
-      if (percentageChange > 10) {
-        const alertType = body.weight > previousWeight ? 'GAIN' : 'LOSS';
-        try {
-          await weightRecordPublisher.publishWeightAlert({
-            petId: petId,
-            userId: target.userId,
-            recipient: target.recipient,
-            veterinaryId: target.veterinaryId,
-            veterinaryName: target.veterinaryName,
-            currentWeight: body.weight,
-            previousWeight: previousWeight,
-            percentageChange: percentageChange,
-            alertType: alertType,
-            alertedAt: new Date().toISOString(),
-          });
-        } catch (pubsubError) {
-          console.error('❌ Error publicando en Pub/Sub:', pubsubError);
-        }
-      }
-    }
-  }
-
-  return NextResponse.json(result, { status: 200 });
-});
+// PATCH ya no sobrescribe el peso: la corrección es POST /api/weight/{id}/corrections (motivo obligatorio).
+export const PATCH = overwriteRefused('/api/weight/{id}/corrections');

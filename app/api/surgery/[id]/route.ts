@@ -1,3 +1,4 @@
+import { withCorrections } from '@/src/infrastructure/clinical/act-versions';
 // src/app/api/pet-surgery/[id]/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { SupabasePetSurgeryRepository } from '@/src/infrastructure/database/repositories/supabase-pet-surgery.repository';
@@ -13,6 +14,9 @@ import { createClient } from '@/src/infrastructure/database/supabase/client';
 import { petIdOfSurgery } from '@/src/infrastructure/database/pet-lookup';
 import { loadExtras, saveExtras } from '@/src/infrastructure/database/clinical-extras';
 import { ForbiddenError, NotFoundError } from '@/src/infrastructure/http/api-error';
+import { assertSameAuthorSide } from '@/src/application/clinical/act-integrity';
+import { actVeterinaryId } from '@/src/infrastructure/clinical/act-author';
+import { overwriteRefused } from '@/src/infrastructure/clinical/correction-handlers';
 import { parseFields, toResponse } from '@/src/application/clinical/field-spec';
 import { parseClinicExtras } from '@/src/application/clinical/clinic-only';
 import { SURGERY_EXTRA_FIELDS } from '@/src/application/clinical/clinical-specs';
@@ -46,86 +50,14 @@ export const GET = withAuth(async (_request: NextRequest, context: RouteContext,
   await authorizePet(actor, petId, 'CLINICAL_READ');
 
   const surgery = await getSurgeriesUseCase.getById(id);
-  return NextResponse.json({ success: true, data: await surgeryWithExtras(id, surgery.toJSON()) });
+  return NextResponse.json(await withCorrections('pet_surgeries', { success: true, data: await surgeryWithExtras(id, surgery.toJSON()) }));
 });
 
-// PUT /api/surgery/[id] - Solo clínica con CLINICAL_WRITE
-export const PUT = withAuth(async (request: NextRequest, context: RouteContext, actor) => {
-  const { id } = await context.params;
+// PUT /api/surgery/[id] → ya no sobrescribe: la corrección es POST /api/surgery/{id}/corrections (motivo obligatorio)
+export const PUT = overwriteRefused('/api/surgery/{id}/corrections');
 
-  const petId = await petIdOfSurgery(id);
-  if (!petId) {
-    return NextResponse.json({ error: 'Surgery not found' }, { status: 404 });
-  }
-  const authorship = await authorizePet(actor, petId, 'CLINICAL_WRITE');
-
-  const body = await request.json();
-  const parsed = parseClinicExtras(!!actor.clinic, body, SURGERY_EXTRA_FIELDS);
-  if (!parsed.ok) {
-    return NextResponse.json({ success: false, message: parsed.message }, { status: 400 });
-  }
-
-  const currentSurgery = await getSurgeriesUseCase.getById(id);
-
-  const surgery = await updateSurgeryUseCase.execute({
-    id: id,
-    title: body.title,
-    description: body.description,
-    surgeryDate: body.surgeryDate ? new Date(body.surgeryDate) : undefined,
-    durationMinutes: body.durationMinutes,
-    anesthesiaUsed: body.anesthesiaUsed,
-    complications: body.complications,
-    postOpInstructions: body.postOpInstructions,
-    outcome: body.outcome,
-    status: body.status,
-    nextCheckupDate: body.nextCheckupDate ? new Date(body.nextCheckupDate) : undefined,
-  });
-
-  await saveExtras('pet_surgeries', id, parsed.values);
-
-  await auditRepository.record({
-    tableName: 'pet_surgeries',
-    recordId: id,
-    action: 'UPDATE',
-    actorUserId: actor.userId,
-    veterinaryId: authorship.veterinaryId,
-    changes: buildChanges(
-      { status: currentSurgery.status, description: currentSurgery.description },
-      { status: body.status, description: body.description }
-    ),
-  });
-
-  // Si el estado cambió a 'completed', avisar al dueño
-  if (body.status?.toLowerCase() === 'completed') {
-    const target = await resolveEventTarget(petId, authorship);
-    if (target) {
-      try {
-        await surgeryPublisher.publishSurgeryCompleted({
-          surgeryId: id,
-          petId: petId,
-          userId: target.userId,
-          recipient: target.recipient,
-          veterinaryId: target.veterinaryId,
-          veterinaryName: target.veterinaryName,
-          outcome: body.outcome || 'completed successfully',
-          notes: body.postOpInstructions || body.description || '',
-          completedAt: new Date().toISOString(),
-        });
-        console.log('✅ Evento SURGERY_COMPLETED publicado correctamente');
-      } catch (pubsubError) {
-        console.error('❌ Error publicando en Pub/Sub:', pubsubError);
-      }
-    }
-  }
-
-  return NextResponse.json({
-    success: true,
-    data: await surgeryWithExtras(id, surgery.toJSON()),
-    message: 'Surgery updated successfully',
-  });
-});
-
-// PATCH /api/surgery/[id] - Actualizar solo el estado. Solo clínica con CLINICAL_WRITE
+// PATCH /api/surgery/[id] - Cambio de ESTADO del ciclo de vida (SCHEDULED → IN_PROGRESS → COMPLETED...).
+// No es una corrección: cambia la fase real de la cirugía. Solo clínica con CLINICAL_WRITE del mismo lado.
 export const PATCH = withAuth(async (request: NextRequest, context: RouteContext, actor) => {
   const { id } = await context.params;
 
@@ -134,6 +66,7 @@ export const PATCH = withAuth(async (request: NextRequest, context: RouteContext
     return NextResponse.json({ error: 'Surgery not found' }, { status: 404 });
   }
   const authorship = await authorizePet(actor, petId, 'CLINICAL_WRITE');
+  assertSameAuthorSide(authorship, await actVeterinaryId({ table: 'pet_surgeries', filterValue: id }));
 
   const body = await request.json();
 

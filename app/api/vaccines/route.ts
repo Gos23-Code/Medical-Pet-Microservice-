@@ -1,3 +1,4 @@
+import { withCorrections } from '@/src/infrastructure/clinical/act-versions';
 // app/api/vaccines/route.ts
 import { NextRequest, NextResponse } from 'next/server';
 import { VaccineRepository } from '@/src/infrastructure/database/repositories/supabase-vaccine.repository';
@@ -93,7 +94,7 @@ export const POST = withAuth(async (request: NextRequest, _context, actor) => {
     veterinaryId: authorship.veterinaryId,
   });
 
-  await saveExtras('vaccines', vaccine.id, { source: authorship.source });
+  await saveExtras('vaccines', vaccine.id, { source: authorship.source, created_by_user_id: actor.userId });
 
   const responseDTO = VaccineMapper.toDTO(vaccine, target.userId ?? '');
   return NextResponse.json({ ...responseDTO, source: authorship.source, replacesVaccineId: replacesId ?? null }, { status: 201 });
@@ -134,5 +135,5 @@ export const GET = withAuth(async (request: NextRequest, _context, actor) => {
       ),
     };
   });
-  return NextResponse.json(responseDTOs);
+  return NextResponse.json(await withCorrections('vaccines', responseDTOs));
 });
