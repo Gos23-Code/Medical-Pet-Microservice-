@@ -49,6 +49,24 @@ export async function petIdOfSurgery(surgeryId: string): Promise<string | null> 
   return data?.pet_id ?? null;
 }
 
+export async function petIdOfAllergy(allergyId: string): Promise<string | null> {
+  const { data } = await createClient()
+    .from('pet_allergies')
+    .select('pet_id')
+    .eq('id', allergyId)
+    .maybeSingle();
+  return data?.pet_id ?? null;
+}
+
+export async function petIdOfDeworming(dewormingId: string): Promise<string | null> {
+  const { data } = await createClient()
+    .from('pet_dewormings')
+    .select('pet_id')
+    .eq('id', dewormingId)
+    .maybeSingle();
+  return data?.pet_id ?? null;
+}
+
 /** Los exámenes viejos no tienen pet_id: en ese caso se sube por la visita. */
 export async function petIdOfLabTest(labTestId: string): Promise<string | null> {
   const { data } = await createClient()

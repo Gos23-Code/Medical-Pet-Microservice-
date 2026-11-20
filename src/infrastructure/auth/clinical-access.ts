@@ -1,6 +1,6 @@
 import { ForbiddenError } from '@/src/infrastructure/http/api-error';
 import { ClinicPermission, getPetAccess } from '@/src/infrastructure/clients/veterinary.client';
-import { isPetOwner } from '@/src/infrastructure/clients/pets.client';
+import { isPetEditor, isPetOwner } from '@/src/infrastructure/clients/pets.client';
 import { Actor } from './actor';
 
 // MED-03 (MEDICAL_SERVICE_CHANGES.md): un mismo endpoint atiende a dos tipos de actor.
@@ -81,9 +81,12 @@ export async function authorizePet(actor: Actor, petId: string, need: ClinicalNe
     );
   }
 
+  // Lado del dueño: el dueño de la mascota o una persona con permiso de editor de Pets.
+  // Ambos pueden modificar actos del lado del dueño; nunca los de una clínica (act-integrity).
   const owner = await isPetOwner(petId, actor.userId);
-  if (!owner) {
-    throw new ForbiddenError('PET_NOT_OWNED', 'La mascota no es tuya');
+  const editor = owner ? false : await isPetEditor(petId, actor.userId);
+  if (!owner && !editor) {
+    throw new ForbiddenError('PET_NOT_OWNED', 'La mascota no es tuya ni te fue compartida');
   }
 
   return { source: 'OWNER', veterinaryId: null, employeeId: null, userId: actor.userId };

@@ -3,6 +3,8 @@ import { createClient } from '@/src/infrastructure/database/supabase/client';
 import { withAuth } from '@/src/infrastructure/auth/with-auth';
 import { authorizePet } from '@/src/infrastructure/auth/clinical-access';
 import { todayInTimeZone } from '@/src/shared/business-date';
+import { GetPetHealthUseCase } from '@/src/application/use-cases/pet-health/get-pet-health.use-case';
+import { SupabasePetHealthRepository } from '@/src/infrastructure/database/repositories/supabase-pet-health.repository';
 
 // GET /api/pets/[petId]/clinical-summary
 // MED-07: lo que ve recepción (CLINICAL_READ_BASIC) y lo que puede usar el IA service antes de la cita.
@@ -64,13 +66,28 @@ export const GET = withAuth(async (_request: NextRequest, context: { params: Pro
     ? { weight: weightRes.data.Weight, date: weightRes.data.Date, recordedAt: weightRes.data.Created_at }
     : null;
 
+  // Alergias, esterilización y prevención (DATOS_MASCOTA_CLINICA.md). Medical es la fuente de estos datos.
+  const health = await new GetPetHealthUseCase(new SupabasePetHealthRepository()).execute(petId);
+
   return NextResponse.json({
     success: true,
     data: {
       petId,
-      // Las alergias no viven en Medical todavía (decisión pendiente, AGENTS.md §10).
-      // null significa "no disponible aquí", no "sin alergias".
-      allergies: null,
+      allergyStatus: health.allergyStatus,
+      allergies: health.allergies
+        .filter((allergy) => allergy.isActive)
+        .map((allergy) => ({
+          id: allergy.id,
+          allergen: allergy.allergen,
+          category: allergy.category,
+          reaction: allergy.reaction,
+          severity: allergy.severity,
+          status: allergy.status,
+          source: allergy.source,
+          confirmedBy: allergy.confirmedBy,
+        })),
+      neutered: health.neutered,
+      prevention: health.dewormings,
       vaccines,
       activeTreatments,
       lastWeight,

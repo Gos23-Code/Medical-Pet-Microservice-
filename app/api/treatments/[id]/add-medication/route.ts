@@ -15,6 +15,9 @@ import { MEDICATION_EXTRA_FIELDS } from '@/src/application/clinical/clinical-spe
 import { SupabaseClinicalAuditRepository } from '@/src/infrastructure/database/repositories/supabase-clinical-audit.repository';
 import { petIdOfTreatment } from '@/src/infrastructure/database/pet-lookup';
 import { NotFoundError } from '@/src/infrastructure/http/api-error';
+import { GetPetHealthUseCase } from '@/src/application/use-cases/pet-health/get-pet-health.use-case';
+import { SupabasePetHealthRepository } from '@/src/infrastructure/database/repositories/supabase-pet-health.repository';
+import { allergyWarningsFor } from '@/src/application/clinical/pet-health/allergy-warnings';
 
 const repository = new SupabaseMedicationRepository();
 const addMedicationUseCase = new AddMedicationUseCase(repository);
@@ -49,7 +52,14 @@ export const POST = withAuth(async (request: NextRequest, context: { params: Pro
   }
 
   const medication = await addMedicationUseCase.execute(id, { ...body, userId: actor.userId, petId });
-  await saveExtras('medications', medication.id, parsed.values);
+  // Autoría de la medicación (columnas de db/scripts/005_integridad_actos.sql)
+  await saveExtras('medications', medication.id, {
+    ...parsed.values,
+    source: authorship.source,
+    veterinary_id: authorship.veterinaryId,
+    employee_id: authorship.employeeId,
+    created_by_user_id: actor.userId,
+  });
   const dto = { ...MedicationMapper.toDTO(medication), ...toResponse(parsed.values, MEDICATION_EXTRA_FIELDS) };
 
   await auditRepository.record({
@@ -84,9 +94,20 @@ export const POST = withAuth(async (request: NextRequest, context: { params: Pro
     }
   }
 
+  // Aviso de alergia (no bloquea): si la medicación coincide con una alergia vigente, se devuelve en allergyWarnings.
+  // Si no se pudo consultar, allergyWarnings es null (no verificado), nunca se asume que está bien.
+  let allergyWarnings: ReturnType<typeof allergyWarningsFor> | null = null;
+  try {
+    const health = await new GetPetHealthUseCase(new SupabasePetHealthRepository()).execute(petId);
+    allergyWarnings = allergyWarningsFor(body.name, health.allergies.filter((allergy) => allergy.isActive));
+  } catch (warningError) {
+    console.error('❌ No se pudo verificar alergias para la medicación:', warningError);
+  }
+
   return NextResponse.json({
     success: true,
     message: 'Medicamento agregado exitosamente',
     data: dto,
+    allergyWarnings,
   }, { status: 201 });
 });

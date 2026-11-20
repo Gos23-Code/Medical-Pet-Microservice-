@@ -14,6 +14,7 @@ import { NotFoundError } from '@/src/infrastructure/http/api-error';
 import { parseFields, toResponse } from '@/src/application/clinical/field-spec';
 import { parseClinicExtras } from '@/src/application/clinical/clinic-only';
 import { SURGERY_EXTRA_FIELDS } from '@/src/application/clinical/clinical-specs';
+import { suggestsNeutering } from '@/src/application/clinical/pet-health/neutering-rules';
 
 const repository = new SupabasePetSurgeryRepository();
 const addSurgeryUseCase = new AddSurgeryUseCase(repository);
@@ -115,6 +116,7 @@ export const POST = withAuth(async (request: NextRequest, _context, actor) => {
     source: authorship.source,
     veterinary_id: authorship.veterinaryId,
     surgeon_employee_id: authorship.employeeId,
+    created_by_user_id: actor.userId,
   });
 
   await auditRepository.record({
@@ -145,9 +147,16 @@ export const POST = withAuth(async (request: NextRequest, _context, actor) => {
     }
   }
 
+  // Sugerencia (DATOS_MASCOTA_CLINICA §4.3): si es una esterilización, la clínica confirma el dato en
+  // PUT /api/pets/{petId}/clinical-profile. No se cambia nada solo.
+  const suggestion = suggestsNeutering(body.title)
+    ? { neutering: { petId: body.petId, surgeryDate: body.surgeryDate, action: 'PUT /api/pets/{petId}/clinical-profile' } }
+    : null;
+
   return NextResponse.json({
     success: true,
     data: { ...surgery.toJSON(), ...toResponse(parsed.values, SURGERY_EXTRA_FIELDS) },
+    suggestion,
     message: 'Surgery created successfully',
   }, { status: 201 });
 });

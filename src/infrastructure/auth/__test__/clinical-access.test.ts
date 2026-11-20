@@ -3,7 +3,7 @@ import { authorizePet, assertClinicPath } from '../clinical-access';
 import { requireClinicWithRead } from '../clinic-read';
 import { Actor } from '../actor';
 import { getPetAccess, ClinicPermission } from '@/src/infrastructure/clients/veterinary.client';
-import { isPetOwner } from '@/src/infrastructure/clients/pets.client';
+import { isPetEditor, isPetOwner } from '@/src/infrastructure/clients/pets.client';
 import { ForbiddenError } from '@/src/infrastructure/http/api-error';
 
 // Los clientes HTTP se simulan: aquí se prueba la regla de decisión, no la red (MED-03).
@@ -12,10 +12,12 @@ jest.mock('@/src/infrastructure/clients/veterinary.client', () => ({
 }));
 jest.mock('@/src/infrastructure/clients/pets.client', () => ({
   isPetOwner: jest.fn(),
+  isPetEditor: jest.fn(),
 }));
 
 const mockGetPetAccess = getPetAccess as jest.MockedFunction<typeof getPetAccess>;
 const mockIsPetOwner = isPetOwner as jest.MockedFunction<typeof isPetOwner>;
+const mockIsPetEditor = isPetEditor as jest.MockedFunction<typeof isPetEditor>;
 
 const owner: Actor = { userId: 'owner-1', email: '', emailVerified: true, platformAdmin: false };
 
@@ -71,7 +73,40 @@ describe('authorizePet: dueño (token USER)', () => {
 
   it('una mascota ajena responde 403 PET_NOT_OWNED', async () => {
     mockIsPetOwner.mockResolvedValue(false);
+    mockIsPetEditor.mockResolvedValue(false);
     await expect(authorizePet(owner, 'pet-9', 'CLINICAL_READ')).rejects.toMatchObject({
+      status: 403,
+      code: 'PET_NOT_OWNED',
+    });
+  });
+
+  it('un editor compartido puede escribir en el lado del dueño (source OWNER, sin clínica)', async () => {
+    const editor: Actor = { userId: 'editor-1', email: '', emailVerified: true, platformAdmin: false };
+    mockIsPetOwner.mockResolvedValue(false);
+    mockIsPetEditor.mockResolvedValue(true);
+    await expect(authorizePet(editor, 'pet-1', 'CLINICAL_WRITE')).resolves.toEqual({
+      source: 'OWNER',
+      veterinaryId: null,
+      employeeId: null,
+      userId: 'editor-1',
+    });
+    expect(mockIsPetEditor).toHaveBeenCalledWith('pet-1', 'editor-1');
+  });
+
+  it('un editor no puede leer documentos (exclusivos de la clínica): 403', async () => {
+    const editor: Actor = { userId: 'editor-1', email: '', emailVerified: true, platformAdmin: false };
+    mockIsPetOwner.mockResolvedValue(false);
+    mockIsPetEditor.mockResolvedValue(true);
+    await expect(authorizePet(editor, 'pet-1', 'DOCUMENT_READ')).rejects.toMatchObject({
+      code: 'CLINIC_TOKEN_REQUIRED',
+    });
+  });
+
+  it('una persona sin propiedad ni editor sobre la mascota recibe 403 PET_NOT_OWNED', async () => {
+    const stranger: Actor = { userId: 'stranger-1', email: '', emailVerified: true, platformAdmin: false };
+    mockIsPetOwner.mockResolvedValue(false);
+    mockIsPetEditor.mockResolvedValue(false);
+    await expect(authorizePet(stranger, 'pet-1', 'CLINICAL_READ')).rejects.toMatchObject({
       status: 403,
       code: 'PET_NOT_OWNED',
     });

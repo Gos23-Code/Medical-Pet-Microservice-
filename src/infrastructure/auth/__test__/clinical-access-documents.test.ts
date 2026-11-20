@@ -6,7 +6,7 @@ import { isPetOwner } from '@/src/infrastructure/clients/pets.client';
 
 // Documentos y lista de la historia: son EXCLUSIVOS de la veterinaria. El dueño nunca los lee ni los sube.
 jest.mock('@/src/infrastructure/clients/veterinary.client', () => ({ getPetAccess: jest.fn() }));
-jest.mock('@/src/infrastructure/clients/pets.client', () => ({ isPetOwner: jest.fn() }));
+jest.mock('@/src/infrastructure/clients/pets.client', () => ({ isPetOwner: jest.fn(), isPetEditor: jest.fn() }));
 
 const mockAccess = getPetAccess as jest.MockedFunction<typeof getPetAccess>;
 const mockOwner = isPetOwner as jest.MockedFunction<typeof isPetOwner>;
